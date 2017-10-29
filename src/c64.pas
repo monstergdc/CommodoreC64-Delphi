@@ -13,19 +13,24 @@ unit c64;
 //updated: 20100101 ????-????
 //updated: 20110510 ????-????
 //updated: 20171029 1715-2040
+//updated: 20171029 2150-2250
 
 {todo:
 # MAIN:
-- main demo app - load any file (by ext)
-- fnt/logo - colors issue?
+- fnt/fntb/logo/mob - colors issue? (proper params)
+- ftn/fntb/mob - more/misc (eg get given one, hires v multi)
 - TBitmap -> TCanvas ?
-- finish: mob, fntb
+.- main demo app - save as jpg
+# NEXT:
 - add misc limit checks
+- Lazarus friendly (laz demo too)
+- separate load and bmp pack
 # LATER:
 - maybe also C version
 - also open source c64pas app 
 - more (eg. advanced formats)?
 - pack back to C64 formats
+- ZX analogue?
 }
 
 {CHANGELOG:
@@ -37,6 +42,7 @@ unit c64;
 - radical code cleanup
 - everything as class
 - amica code integrated
+- demo app
 }
 
 interface
@@ -84,12 +90,16 @@ TC64 = class(TObject)
 private
   f: file of byte;
   color1_: byte;
+  FLastError: string;
   function GenericLoader(FileName: string; callback: TC64Loader; bmp: TBitmap): integer;
 
   procedure KOALAshow(koala: KOALAdata; bmp: TBitmap);
   procedure HIRESshow(hires: HIRESdata; bmp: TBitmap);
   procedure LOGOshow(logo: LOGOdata; bmp: TBitmap; color1: byte);
   procedure FNTshow(x0, y0: integer; fnt: FNTdata; bmp: TBitmap; cnt: byte; color1: byte);
+  procedure FNTBshow(x0, y0: integer; fntb: FNTBdata; bmp: TBitmap; cnt: byte; color1: byte);
+  procedure hMOBshow(x0, y0: integer; mob: MOBdata; bmp: TBitmap; cnt: byte; color1: byte);
+  procedure mMOBshow(x0, y0: integer; mob: MOBdata; bmp: TBitmap; cnt: byte; color1: byte);
 
   procedure KOALAload(bmp: TBitmap);
   procedure HIRESload(bmp: TBitmap);
@@ -98,23 +108,22 @@ private
   procedure AMICA2KOALA(o_buff: TAmicaBuff; var koala: KOALAdata);
   procedure LOGOload(bmp: TBitmap);
   procedure FNTload(bmp: TBitmap);
+  procedure FNTBload(bmp: TBitmap);
+  procedure MOBloadHires(bmp: TBitmap);
+  procedure MOBloadMulticolor(bmp: TBitmap);
 public
   function GetC64Color(index: integer): TColor;
   function LoadKoalaToBitmap(FileName: string; bmp: TBitmap): integer;
   function LoadHiresToBitmap(FileName: string; bmp: TBitmap): integer;
   function LoadAmicaToBitmap(FileName: string; bmp: TBitmap): integer;
   function LoadLogoToBitmap(FileName: string; bmp: TBitmap; color1: byte): integer;
-  function LoadFontToBitmap(FileName: string; bmp: TBitmap): integer;    
+  function LoadFontToBitmap(FileName: string; bmp: TBitmap): integer;
+  function LoadFont2x2ToBitmap(FileName: string; bmp: TBitmap): integer;
+  function LoadMobToBitmap(FileName: string; bmp: TBitmap; hires: boolean): integer;
+published
+  property LastError: string read FLastError;
 end;
 
-(*
-procedure MOBload(name : string; var mob : MOBdata);
-procedure FNTBload(name : string; var FNTB : FNTBdata);
-
-procedure FNTBshow(x0,y0 : integer; fntb : FNTBdata; cnt : byte; color1 : byte);
-procedure hMOBshow(x0,y0 : integer; mob : MOBdata; cnt : byte; color : byte);
-procedure mMOBshow(x0,y0 : integer; mob : MOBdata; cnt : byte; color1 : byte);
-*)
 
 implementation
 
@@ -141,6 +150,7 @@ end;
 function TC64.GenericLoader(FileName: string; callback: TC64Loader; bmp: TBitmap): integer;
 begin
   result := -1;
+  FLastError := 'Required parameters not assigned.';
   if not assigned(callback) then exit;
   if not assigned(bmp) then exit;
   try
@@ -149,8 +159,9 @@ begin
     callback(bmp);
     CloseFile(f);
     result := 0;
+    FLastError := '';
   except
-//    on E: Exception do showmessage('ERR: '+E.Message+' '+FileName); //todo: fix nice
+    on E: Exception do FLastError := E.Message;
   end;
 end;
 
@@ -264,6 +275,70 @@ begin
       bmp.Canvas.Pixels[x0+8-bit, y0+y] := c;
     end;
   end;
+end;
+
+procedure TC64.FNTBshow(x0, y0: integer; fntb: FNTBdata; bmp: TBitmap; cnt: byte; color1: byte);
+var x, y, bit, bt, vl1, vl2, vl, c: byte;
+    cl: TColor;
+begin
+  if not assigned(bmp) then exit;
+
+  for y := 0 to 15 do
+    for x := 0 to 1 do
+    begin
+      if y >= 8 then c := 16+y-8 else c := y;
+      bt := fntb.fntb[cnt, x*8+c];
+      for bit := 3 downto 0 do
+      begin
+        vl1 := (bt and pow[bit*2]) div pow[bit*2];
+        vl2 := (bt and pow[bit*2+1]) div pow[bit*2+1];
+        vl := vl1+2*vl2;
+        cl := RGB(_r[vl], _g[vl], _b[vl]);
+        bmp.Canvas.Pixels[x0+x*8+7-2*bit, y0+y] := cl;
+        bmp.Canvas.Pixels[x0+x*8+8-2*bit, y0+y] := cl;
+      end;
+    end;
+end;
+
+procedure TC64.hMOBshow(x0, y0: integer; mob: MOBdata; bmp: TBitmap; cnt: byte; color1: byte);
+var x, y, bit, bt, vl : byte;
+    cl: TColor;
+begin
+  if not assigned(bmp) then exit;
+
+  for y := 0 to 20 do
+    for x := 0 to 2 do
+    begin
+      bt := mob.mob[cnt, x+y*3];
+      for bit := 7 downto 0 do
+      begin
+        vl := (bt and pow[bit]) div pow[bit];
+        cl := RGB(_r[vl], _g[vl], _b[vl]);
+        bmp.Canvas.Pixels[x0+x*8+7-bit, y0+y] := cl;
+      end
+    end;
+end;
+
+procedure TC64.mMOBshow(x0, y0: integer; mob: MOBdata; bmp: TBitmap; cnt: byte; color1: byte);
+var x, y, bit, bt, vl1, vl2, vl: byte;
+    cl: TColor;
+begin
+  if not assigned(bmp) then exit;
+
+  for y := 0 to 20 do
+    for x := 0 to 2 do
+    begin
+      bt := mob.mob[cnt,x+y*3];
+      for bit := 3 downto 0 do
+      begin
+        vl1 := (bt and pow[bit*2]) div pow[bit*2];
+        vl2 := (bt and pow[bit*2+1]) div pow[bit*2+1];
+        vl := vl1+2*vl2;
+        cl := RGB(_r[vl], _g[vl], _b[vl]);
+        bmp.Canvas.Pixels[x0+x*8+7-2*bit, y0+y] := cl;
+        bmp.Canvas.Pixels[x0+x*8+8-2*bit, y0+y] := cl;
+      end;
+    end;
 end;
 
 //---
@@ -388,14 +463,14 @@ begin
 end;
 
 procedure TC64.FNTload(bmp: TBitmap);
-var FNT: FNTdata;
+var fnt: FNTdata;
     g, h: byte;
 begin
   if not assigned(bmp) then exit;
 
   for g := 1 to 255 do for h := 0 to 7 do fnt.fnt[g, h] := 0;
 
-  read(f,g,g);
+  read(f, g, g);
   for g := 1 to 64 do
     for h := 0 to 7 do
       read(f, fnt.fnt[g, h]);
@@ -403,6 +478,80 @@ begin
     FNTshow(h*8-8, 0, fnt, bmp, (h), color1_);
   for h := 1 to 24 do    
     FNTshow(h*8-8, 8, fnt, bmp, (40+h), color1_);
+end;
+
+procedure TC64.FNTBload(bmp: TBitmap);
+var fntb: FNTBdata;
+    g, h, none: byte;
+begin
+  if not assigned(bmp) then exit;
+
+  read(f, none, none);
+  for g := 1 to 64 do for h := 0 to 7 do read(f, fntb.fntb[g, h]);
+  for g := 1 to 64 do for h := 0 to 7 do read(f, fntb.fntb[g, h+8]);
+  for g := 1 to 64 do for h := 0 to 7 do read(f, fntb.fntb[g, h+16]);
+  for g := 1 to 64 do for h := 0 to 7 do read(f, fntb.fntb[g, h+24]);
+
+  for h := 1 to 20 do
+    FNTBshow(h*16-16, 0, fntb, bmp, (h), color1_);
+  for h := 1 to 20 do
+    FNTBshow(h*16-16, 16, fntb, bmp, (20+h), color1_);
+  for h := 1 to 20 do
+    FNTBshow(h*16-16, 32, fntb, bmp, (40+h), color1_);
+  for h := 1 to 4 do
+    FNTBshow(h*16-16, 48, fntb, bmp, (60+h), color1_);
+end;
+
+procedure TC64.MOBloadHires(bmp: TBitmap);
+var mob: MOBdata;
+    g: byte;
+begin
+  if not assigned(bmp) then exit;
+
+  mob.cnt := 1;
+  read(f, g, g);
+  while not eof(f) do
+  begin
+    for g := 0 to 63 do
+    begin
+      if not eof(f) then
+        read(f, mob.mob[mob.cnt, g])
+      else
+        mob.mob[mob.cnt, g] := 0;
+    end;
+    inc(mob.cnt)
+  end;
+  dec(mob.cnt);
+
+  for g := 1 to 13 do
+    if g <= mob.cnt then
+      hMOBshow(g*24-24, 0, mob, bmp, (g), color1_); //todo: more
+end;
+
+procedure TC64.MOBloadMulticolor(bmp: TBitmap);
+var mob: MOBdata;
+    g: byte;
+begin
+  if not assigned(bmp) then exit;
+
+  mob.cnt := 1;
+  read(f, g, g);
+  while not eof(f) do
+  begin
+    for g := 0 to 63 do
+    begin
+      if not eof(f) then
+        read(f, mob.mob[mob.cnt, g])
+      else
+        mob.mob[mob.cnt, g] := 0;
+    end;
+    inc(mob.cnt)
+  end;
+  dec(mob.cnt);
+
+  for g := 1 to 13 do
+    if g <= mob.cnt then
+      hMOBshow(g*24-24, 0, mob, bmp, (g), color1_); //todo: more
 end;
 
 //---
@@ -433,117 +582,20 @@ begin
   result := GenericLoader(FileName, FNTload, bmp);
 end;
 
-/////////////////////
-
-(*
-procedure MOBload(name : string; var mob : MOBdata);
-var f : file of byte;
-    g : byte;
+function TC64.LoadFont2x2ToBitmap(FileName: string; bmp: TBitmap): integer;
 begin
-  mob.cnt := 1;
-  assign(f,name);
-  reset(f);
-  read(f,g,g);
-  while not eof(f) do
-    begin
-      for g := 0 to 63 do
-        read(f,mob.mob[mob.cnt,g]);
-      inc(mob.cnt)
-    end;
-  dec(mob.cnt);
-  close(f)
+  result := GenericLoader(FileName, FNTBload, bmp);
 end;
 
-procedure FNTBload(name : string; var FNTB : FNTBdata);
-var f : file of byte;
-    g,h : byte;
+function TC64.LoadMobToBitmap(FileName: string; bmp: TBitmap; hires: boolean): integer;
+var loader: TC64Loader;
 begin
-  assign(f,name);
-  reset(f);
-  read(f,g,g);
-  for g := 1 to 64 do
-    for h := 0 to 7 do
-    read(f,fntb.fntb[g,h]);
-  for g := 1 to 64 do
-    for h := 0 to 7 do
-    read(f,fntb.fntb[g,h+8]);
-  for g := 1 to 64 do
-    for h := 0 to 7 do
-    read(f,fntb.fntb[g,h+16]);
-  for g := 1 to 64 do
-    for h := 0 to 7 do
-    read(f,fntb.fntb[g,h+24]);
-  close(f)
+  if hires then
+    loader := MOBloadHires 
+  else
+    loader := MOBloadMulticolor;
+  result := GenericLoader(FileName, loader, bmp);
 end;
-
-//---
-
-procedure hMOBshow(x0,y0 : integer; mob : MOBdata; cnt : byte; color : byte);
-var x,y,bit,bt,vl : byte;
-    adr : word;
-begin
-  adr := x0+320*y0;
-  for y := 0 to 20 do
-    for x := 0 to 2 do
-      begin
-        bt := mob.mob[cnt,x+y*3];
-        for bit := 7 downto 0 do
-          begin
-            vl := (bt and pow[bit]) div pow[bit];
-  {!!!}     if vl = 1 then
-              mem[$0a000:adr+y*320+x*8+7-bit] := vl*color
-          end
-      end
-end;
-
-procedure mMOBshow(x0,y0 : integer; mob : MOBdata; cnt : byte; color1 : byte);
-var x,y,bit,bt,vl1,vl2,vl : byte;
-    adr : word;
-begin
-  adr := x0+320*y0;
-  for y := 0 to 20 do
-    for x := 0 to 2 do
-      begin
-        bt := mob.mob[cnt,x+y*3];
-        for bit := 3 downto 0 do
-          begin
-            vl1 := (bt and pow[bit*2]) div pow[bit*2];
-            vl2 := (bt and pow[bit*2+1]) div pow[bit*2+1];
-            vl := vl1+2*vl2;
-            if vl <> 0 then
-             begin
-                mem[$0a000:adr+y*320+x*8+7-2*bit] := vl+color1-1;
-                mem[$0a000:adr+y*320+x*8+8-2*bit] := vl+color1-1;
-              end
-          end
-      end
-end;
-
-procedure FNTBshow(x0,y0 : integer; fntb : FNTBdata; cnt : byte; color1 : byte);
-var x,y,bit,bt,vl1,vl2,vl,c : byte;
-    adr : word;
-begin
-  adr := x0+320*y0;
-  for y := 0 to 15 do
-    for x := 0 to 1 do
-      begin
-        if y>=8 then c := 16+y-8  else c := y;
-        bt := fntb.fntb[cnt,x*8+c];
-        for bit := 3 downto 0 do
-          begin
-            vl1 := (bt and pow[bit*2]) div pow[bit*2];
-            vl2 := (bt and pow[bit*2+1]) div pow[bit*2+1];
-            vl := vl1+2*vl2;
-            if vl <> 0 then
-             begin
-                mem[$0a000:adr+y*320+x*8+7-2*bit] := vl+color1-1;
-                mem[$0a000:adr+y*320+x*8+8-2*bit] := vl+color1-1;
-              end
-          end
-      end
-
-end;
-*)
 
 end.
 

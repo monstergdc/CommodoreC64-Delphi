@@ -1,8 +1,8 @@
 object Form1: TForm1
   Left = 188
   Top = 107
-  Width = 432
-  Height = 275
+  Width = 431
+  Height = 290
   Caption = 'TC64 Delphi class demo'
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
@@ -83,8 +83,8 @@ object Form1: TForm1
     OnClick = BitBtn6Click
   end
   object BitBtnSave: TBitBtn
-    Left = 336
-    Top = 216
+    Left = 248
+    Top = 232
     Width = 75
     Height = 25
     Caption = 'Save BMP'
@@ -92,18 +92,49 @@ object Form1: TForm1
     OnClick = BitBtnSaveClick
   end
   object BitBtnAbout: TBitBtn
-    Left = 256
-    Top = 216
+    Left = 88
+    Top = 232
     Width = 75
     Height = 25
     Caption = 'About'
     TabOrder = 7
     OnClick = BitBtnAboutClick
   end
+  object BitBtn7: TBitBtn
+    Left = 336
+    Top = 200
+    Width = 75
+    Height = 25
+    Caption = 'MOB'
+    TabOrder = 8
+    OnClick = BitBtn7Click
+  end
+  object BitBtnLoad: TBitBtn
+    Left = 168
+    Top = 232
+    Width = 75
+    Height = 25
+    Caption = 'Load...'
+    TabOrder = 9
+    OnClick = BitBtnLoadClick
+  end
+  object BitBtn8: TBitBtn
+    Left = 336
+    Top = 232
+    Width = 75
+    Height = 25
+    Caption = 'MFB'
+    TabOrder = 10
+    OnClick = BitBtn8Click
+  end
   object SaveDialog1: TSaveDialog
     Filter = 'Bitmaps|*.bmp'
     Options = [ofOverwritePrompt, ofHideReadOnly, ofPathMustExist, ofEnableSizing]
-    Left = 184
-    Top = 216
+    Left = 24
+    Top = 168
+  end
+  object OpenDialog1: TOpenDialog
+    Left = 24
+    Top = 136
   end
 end

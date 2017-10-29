@@ -8,7 +8,8 @@ interface
 
 uses
   Windows, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
-  Dialogs, c64, StdCtrls, Buttons, ExtCtrls;
+  Dialogs, StdCtrls, Buttons, ExtCtrls,
+  c64, jpeg;
 
 type
   TForm1 = class(TForm)
@@ -23,6 +24,10 @@ type
     BitBtnSave: TBitBtn;
     BitBtnAbout: TBitBtn;
     SaveDialog1: TSaveDialog;
+    BitBtn7: TBitBtn;
+    BitBtnLoad: TBitBtn;
+    OpenDialog1: TOpenDialog;
+    BitBtn8: TBitBtn;
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
     procedure BitBtn1Click(Sender: TObject);
@@ -33,8 +38,12 @@ type
     procedure BitBtn6Click(Sender: TObject);
     procedure BitBtnSaveClick(Sender: TObject);
     procedure BitBtnAboutClick(Sender: TObject);
+    procedure BitBtnLoadClick(Sender: TObject);
+    procedure BitBtn7Click(Sender: TObject);
+    procedure BitBtn8Click(Sender: TObject);
   private
     c64: TC64;
+    procedure ClearImage;
   public
   end;
 
@@ -54,11 +63,19 @@ begin
   Image1.Picture.Bitmap.PixelFormat := pf24bit;
   folder := ExtractFilePath(Application.ExeName)+'..\c64-sampledata\';
   SaveDialog1.InitialDir := ExtractFilePath(Application.ExeName);
+  OpenDialog1.InitialDir := ExtractFilePath(folder);
 end;
 
 procedure TForm1.FormDestroy(Sender: TObject);
 begin
   c64.Free;
+end;
+
+procedure TForm1.ClearImage;
+begin
+  Image1.Picture.Bitmap.Canvas.Pen.Color := clWhite;
+  Image1.Picture.Bitmap.Canvas.Brush.Color := clBlack;
+  Image1.Picture.Bitmap.Canvas.FillRect(RECT(0, 0, 320, 200));
 end;
 
 procedure TForm1.BitBtn1Click(Sender: TObject);
@@ -73,7 +90,7 @@ end;
 
 procedure TForm1.BitBtn3Click(Sender: TObject);
 begin
-  c64.LoadAmicaToBitmap(folder+'[b]stormlord', Image1.Picture.Bitmap);
+  c64.LoadAmicaToBitmap(folder+'[b]stormlord.[b]', Image1.Picture.Bitmap);
 end;
 
 procedure TForm1.BitBtn4Click(Sender: TObject);
@@ -83,44 +100,28 @@ end;
 
 procedure TForm1.BitBtn5Click(Sender: TObject);
 begin
-  Image1.Picture.Bitmap.Canvas.Brush.Color := clBlack;
-  Image1.Picture.Bitmap.Canvas.FillRect(RECT(0, 0, 320, 200));
+  ClearImage;
   c64.LoadFontToBitmap(folder+'IRON-PL.FNT', Image1.Picture.Bitmap);
 end;
 
 procedure TForm1.BitBtn6Click(Sender: TObject);
 begin
-(*
-  MOBload(path+'rozne.mob',mob1);
-  MOBload(path+'swiss.mbf',mob2);
-  MOBload(path+'tfight.mob',mob3);
-  FNTBload(path+'leonardo.fnb',fntb);
+  ClearImage;
+  c64.LoadFont2x2ToBitmap(folder+'LEONARDO.FNB', Image1.Picture.Bitmap);
+end;
 
-  for n := 1 to 19 do
-    FNTBshow(n*16-15,150,fntb,n,7);
-  for n := 1 to 12 {mob1.cnt} do
-    mMOBshow(n*25-20,30,mob1,n,1);
-  for n := 1 to 12 {mob2.cnt} do
-    mMOBshow(n*25-20,60,mob2,n,4);
-  for n := 1 to 12 {mob3.cnt} do
-    hMOBshow(n*25-20,90,mob3,n,15);
+procedure TForm1.BitBtn7Click(Sender: TObject);
+begin
+  ClearImage;
+  c64.LoadMobToBitmap(folder+'ROZNE.MOB', Image1.Picture.Bitmap, false);
 
-  n := 1; m := 1;
-  repeat
-    hCLS(160,120);
-    hMOBshow(160,120,mob3,n,15);
-    hCLS(201,120);
-    mMOBshow(200,120,mob1,no[m],1);
+//  for n := 1 to 12 {mob1.cnt} do mMOBshow(n*25-20,30,mob1,n,1);
+end;
 
-    delay(20);
-    inc(n);
-    inc(m);
-    if n>10 then n := 1;
-    if m>8 then m := 1
-  until keypressed;
-*)
-
-//
+procedure TForm1.BitBtn8Click(Sender: TObject);
+begin
+  ClearImage;
+  c64.LoadMobToBitmap(folder+'SWISS.MBF', Image1.Picture.Bitmap, false);
 end;
 
 procedure TForm1.BitBtnSaveClick(Sender: TObject);
@@ -145,6 +146,33 @@ begin
               #13#10+
               'Greetings to all old friends from demoscene!'#13#10
               );
+end;
+
+procedure TForm1.BitBtnLoadClick(Sender: TObject);
+var fn, ext: string;
+begin
+  if OpenDialog1.Execute then
+  begin
+    ClearImage;
+    fn := OpenDialog1.FileName;
+    ext := uppercase(ExtractFileExt(fn));
+    if ext = '.KOA' then
+      c64.LoadKoalaToBitmap(fn, Image1.Picture.Bitmap);
+    if ext = '.PIC' then
+      c64.LoadHiresToBitmap(fn, Image1.Picture.Bitmap);
+    if ext = '.[B]' then
+      c64.LoadAmicaToBitmap(fn, Image1.Picture.Bitmap);
+    if ext = '.GFX' then
+      c64.LoadLogoToBitmap(fn, Image1.Picture.Bitmap, 1);
+    if ext = '.FNT' then
+      c64.LoadFontToBitmap(fn, Image1.Picture.Bitmap);
+    if ext = '.FNB' then
+      c64.LoadFont2x2ToBitmap(fn, Image1.Picture.Bitmap);
+    if ext = '.MOB' then
+      c64.LoadMobToBitmap(fn, Image1.Picture.Bitmap, false);
+    if ext = '.MBF' then
+      c64.LoadMobToBitmap(fn, Image1.Picture.Bitmap, true);
+  end;
 end;
 
 end.
