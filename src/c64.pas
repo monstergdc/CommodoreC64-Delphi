@@ -12,16 +12,15 @@ unit c64;
 //updated: 20091231 ????-????
 //updated: 20100101 ????-????
 //updated: 20110510 ????-????
-//updated: 20171029 1715-2030
+//updated: 20171029 1715-2040
 
 {todo:
 # MAIN:
 - main demo app - load any file (by ext)
-- fnt/ logo - colors issue?
+- fnt/logo - colors issue?
 - TBitmap -> TCanvas ?
 - finish: mob, fntb
-- font - show more
-- misc limit checks
+- add misc limit checks
 # LATER:
 - maybe also C version
 - also open source c64pas app 
