@@ -15,6 +15,7 @@ unit c64;
 //updated: 20171029 1715-2040
 //updated: 20171029 2150-2250
 //updated: 20171030 2200-2215
+//updated: 20171030 2240-2310
 
 {todo:
 # MAIN:
@@ -24,17 +25,16 @@ unit c64;
 - add misc limit checks
 - Lazarus friendly (laz demo too, compile+check on Linux)
 - separate load and bmp pack
+- more (eg. advanced formats *FLI*)
 # LATER:
-- maybe also C version
-- also open source c64pas app 
-- more (eg. advanced formats)?
-- pack back to C64 formats
+- also open source c64pas app
+- pack back to C64 formats and write
 - ZX analogue?
 }
 
 {CHANGELOG:
 # v1.0
-- base stuff, old version in Turbo Pascal
+- base stuff, old version in Turbo Pascal, so ancient 
 # v1.1
 - slightly rewritten for Delphi (then named mob64.pas)
 # v1.2
@@ -42,6 +42,7 @@ unit c64;
 - everything as class
 - amica code integrated
 - demo app
+- misc
 }
 
 interface
@@ -75,15 +76,19 @@ type
                    bitmap: array[0..$3f40-$2000-1] of byte;
                    ink: array[0..$8328-$7f40-1] of byte;
                  end;
+(* unused
      AMICAdata = record
                    len: word;
                    bmp: array[0..40*256-1] of byte;
                  end;
-
+*)
 
 TC64Loader = procedure(ca: TCanvas) of object;
 
 TAmicaBuff = array[0..32767] of byte;
+
+TC64FileType = (C64_UNKNOWN, C64_KOALA, C64_HIRES, C64_AMICA,
+                C64_LOGO, C64_FNT, C64_FNTB, C64_MOB, C64_MBF);
 
 TC64 = class(TObject)
 private
@@ -94,7 +99,7 @@ private
 
   procedure KOALAshow(koala: KOALAdata; ca: TCanvas);
   procedure HIRESshow(hires: HIRESdata; ca: TCanvas);
-  procedure LOGOshow(logo: LOGOdata; ca: TCanvas; color1: byte);
+  procedure LOGOshow(logo: LOGOdata; ca: TCanvas; color0, color1, color2, color3: byte);
   procedure FNTshow(x0, y0: integer; fnt: FNTdata; ca: TCanvas; cnt: byte; color1: byte);
   procedure FNTBshow(x0, y0: integer; fntb: FNTBdata; ca: TCanvas; cnt: byte; color1: byte);
   procedure hMOBshow(x0, y0: integer; mob: MOBdata; ca: TCanvas; cnt: byte; color1: byte);
@@ -112,6 +117,7 @@ private
   procedure MOBloadMulticolor(ca: TCanvas);
 public
   function GetC64Color(index: integer): TColor;
+  function ExtMapper(ext: string): TC64FileType;
   function LoadKoalaToBitmap(FileName: string; ca: TCanvas): integer;
   function LoadHiresToBitmap(FileName: string; ca: TCanvas): integer;
   function LoadAmicaToBitmap(FileName: string; ca: TCanvas): integer;
@@ -146,12 +152,28 @@ begin
     result := RGB(_r[index], _g[index], _b[index]);
 end;
 
+function TC64.ExtMapper(ext: string): TC64FileType;
+var e: string;
+begin
+  e := uppercase(ext);
+  result := C64_UNKNOWN;
+
+  if ext = '.KOA' then result := C64_KOALA;
+  if ext = '.PIC' then result := C64_HIRES;
+  if ext = '.[B]' then result := C64_AMICA; //note: this is invented here (names had [B]* fmt)
+  if ext = '.GFX' then result := C64_LOGO;  //note: invented here
+  if ext = '.FNT' then result := C64_FNT;
+  if ext = '.FNB' then result := C64_FNTB;  //note: invented here
+  if ext = '.MOB' then result := C64_MOB;   //note: invented here
+  if ext = '.MBF' then result := C64_MBF;   //note: invented here
+end;
+
 function TC64.GenericLoader(FileName: string; callback: TC64Loader; ca: TCanvas): integer;
 begin
   result := -1;
   FLastError := 'Required parameters not assigned.';
-  if not assigned(callback) then exit;
-  if not assigned(ca) then exit;
+  if not assigned(callback) or not assigned(ca) then exit;
+
   try
     AssignFile(f, FileName);
     reset(f);
@@ -232,7 +254,7 @@ begin
     end;
 end;
 
-procedure TC64.LOGOshow(logo: LOGOdata; ca: TCanvas; color1: byte);
+procedure TC64.LOGOshow(logo: LOGOdata; ca: TCanvas; color0, color1, color2, color3: byte);
 var x, y, bit, bt1, bt2, vl, vl1, vl2, bt: byte;
     c: TColor;
 begin
@@ -249,8 +271,13 @@ begin
         begin
           vl1 := ((bt2 and pow[bit*2]) div pow[bit*2]);
           vl2 := ((bt2 and pow[bit*2+1]) div pow[bit*2+1]);
-          vl := vl1+2*vl2+color1-1;
-          c := RGB(_r[vl], _g[vl], _b[vl]);
+          vl := vl1+2*vl2;
+          case vl of
+            0: c := RGB(_r[color0], _g[color0], _b[color0]);
+            1: c := RGB(_r[color1], _g[color1], _b[color1]);
+            2: c := RGB(_r[color2], _g[color2], _b[color2]);
+            3: c := RGB(_r[color3], _g[color3], _b[color3]);
+          end;
           ca.Pixels[x*8+7-2*bit, (y*8+bt)] := c;
           ca.Pixels[x*8+8-2*bit, (y*8+bt)] := c;
         end;
@@ -458,7 +485,7 @@ begin
     read(f,none);
   for g := $2000-$2000 to $2800-$2000-1 do
     read(f,logo.bitmap[g]);
-  LOGOshow(logo, ca, color1_);
+  LOGOshow(logo, ca, 3, 1, 6, 0); //todo: you know what!
 end;
 
 procedure TC64.FNTload(ca: TCanvas);
