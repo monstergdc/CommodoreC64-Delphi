@@ -80,58 +80,75 @@ end;
 
 procedure TForm1.BitBtn1Click(Sender: TObject);
 begin
-  c64.LoadKoalaToBitmap(folder+'PIC_GDC.koa', Image1.Picture.Bitmap);
+  c64.LoadKoalaToBitmap(folder+'PIC_GDC.koa', Image1.Picture.Bitmap.Canvas);
 end;
 
 procedure TForm1.BitBtn2Click(Sender: TObject);
 begin
-  c64.LoadHiresToBitmap(folder+'ZX-FLORD.PIC', Image1.Picture.Bitmap);
+  c64.LoadHiresToBitmap(folder+'ZX-FLORD.PIC', Image1.Picture.Bitmap.Canvas);
 end;
 
 procedure TForm1.BitBtn3Click(Sender: TObject);
 begin
-  c64.LoadAmicaToBitmap(folder+'[b]stormlord.[b]', Image1.Picture.Bitmap);
+  c64.LoadAmicaToBitmap(folder+'[b]stormlord.[b]', Image1.Picture.Bitmap.Canvas);
 end;
 
 procedure TForm1.BitBtn4Click(Sender: TObject);
 begin
-  c64.LoadLogoToBitmap(folder+'MYLOGOV2.GFX', Image1.Picture.Bitmap, 1);
+  c64.LoadLogoToBitmap(folder+'MYLOGOV2.GFX', Image1.Picture.Bitmap.Canvas, 1);
 end;
 
 procedure TForm1.BitBtn5Click(Sender: TObject);
 begin
   ClearImage;
-  c64.LoadFontToBitmap(folder+'IRON-PL.FNT', Image1.Picture.Bitmap);
+  c64.LoadFontToBitmap(folder+'IRON-PL.FNT', Image1.Picture.Bitmap.Canvas);
 end;
 
 procedure TForm1.BitBtn6Click(Sender: TObject);
 begin
   ClearImage;
-  c64.LoadFont2x2ToBitmap(folder+'LEONARDO.FNB', Image1.Picture.Bitmap);
+  c64.LoadFont2x2ToBitmap(folder+'LEONARDO.FNB', Image1.Picture.Bitmap.Canvas);
 end;
 
 procedure TForm1.BitBtn7Click(Sender: TObject);
 begin
   ClearImage;
-  c64.LoadMobToBitmap(folder+'ROZNE.MOB', Image1.Picture.Bitmap, false);
-
-//  for n := 1 to 12 {mob1.cnt} do mMOBshow(n*25-20,30,mob1,n,1);
+  c64.LoadMobToBitmap(folder+'ROZNE.MOB', Image1.Picture.Bitmap.Canvas, false);
 end;
 
 procedure TForm1.BitBtn8Click(Sender: TObject);
 begin
   ClearImage;
-  c64.LoadMobToBitmap(folder+'SWISS.MBF', Image1.Picture.Bitmap, false);
+  c64.LoadMobToBitmap(folder+'SWISS.MBF', Image1.Picture.Bitmap.Canvas, false);
 end;
 
 procedure TForm1.BitBtnSaveClick(Sender: TObject);
+var jpg: TJPEGImage;
 begin
+  jpg := TJPEGImage.Create;
+
+  SaveDialog1.Filter := 'BMP (*.bmp)|*.bmp|JPG (*.jpg)|*.jpg';
   if SaveDialog1.Execute then
   try
-    Image1.Picture.Bitmap.SaveToFile(SaveDialog1.FileName);
+    if SaveDialog1.FilterIndex = 2 then //jpg
+    begin
+      jpg.Assign(Image1.Picture.Bitmap);
+      jpg.CompressionQuality := 100;
+      SaveDialog1.FileName := ChangeFileExt(SaveDialog1.FileName, '.jpg');
+      jpg.SaveToFile(SaveDialog1.FileName);
+    end
+    else
+    begin
+      SaveDialog1.FileName := ChangeFileExt(SaveDialog1.FileName, '.bmp');
+      Image1.Picture.Bitmap.SaveToFile(SaveDialog1.FileName);
+    end;
+    MessageDlg('Image saved to '+SaveDialog1.FileName, mtInformation, [mbOK], 0);
   except
-    on E: Exception do showmessage('Error: '+E.Message);
+    on E: Exception do
+      MessageDlg('Error saving image: '+E.Message, mtError, [mbOK], 0);
   end;
+
+  jpg.Free;  
 end;
 
 procedure TForm1.BitBtnAboutClick(Sender: TObject);
@@ -140,7 +157,7 @@ begin
               '(c)1994-2017 Noniewicz.com'#13#10+
               '*FREEWARE*'#13#10+
               'Reads AMICA PAINT, KOALA, HIRES, FONT and MOB (sprite) files.'#13#10+
-              'Saves only BMP for now.'#13#10+
+              'Saves only BMP/JPG for now.'#13#10+
               #13#10+
               'Further development possible but not granted.'#13#10+
               #13#10+
@@ -157,21 +174,21 @@ begin
     fn := OpenDialog1.FileName;
     ext := uppercase(ExtractFileExt(fn));
     if ext = '.KOA' then
-      c64.LoadKoalaToBitmap(fn, Image1.Picture.Bitmap);
+      c64.LoadKoalaToBitmap(fn, Image1.Picture.Bitmap.Canvas);
     if ext = '.PIC' then
-      c64.LoadHiresToBitmap(fn, Image1.Picture.Bitmap);
+      c64.LoadHiresToBitmap(fn, Image1.Picture.Bitmap.Canvas);
     if ext = '.[B]' then
-      c64.LoadAmicaToBitmap(fn, Image1.Picture.Bitmap);
+      c64.LoadAmicaToBitmap(fn, Image1.Picture.Bitmap.Canvas);
     if ext = '.GFX' then
-      c64.LoadLogoToBitmap(fn, Image1.Picture.Bitmap, 1);
+      c64.LoadLogoToBitmap(fn, Image1.Picture.Bitmap.Canvas, 1);
     if ext = '.FNT' then
-      c64.LoadFontToBitmap(fn, Image1.Picture.Bitmap);
+      c64.LoadFontToBitmap(fn, Image1.Picture.Bitmap.Canvas);
     if ext = '.FNB' then
-      c64.LoadFont2x2ToBitmap(fn, Image1.Picture.Bitmap);
+      c64.LoadFont2x2ToBitmap(fn, Image1.Picture.Bitmap.Canvas);
     if ext = '.MOB' then
-      c64.LoadMobToBitmap(fn, Image1.Picture.Bitmap, false);
+      c64.LoadMobToBitmap(fn, Image1.Picture.Bitmap.Canvas, false);
     if ext = '.MBF' then
-      c64.LoadMobToBitmap(fn, Image1.Picture.Bitmap, true);
+      c64.LoadMobToBitmap(fn, Image1.Picture.Bitmap.Canvas, true);
   end;
 end;
 

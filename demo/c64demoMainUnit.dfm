@@ -87,7 +87,7 @@ object Form1: TForm1
     Top = 232
     Width = 75
     Height = 25
-    Caption = 'Save BMP'
+    Caption = 'Save img...'
     TabOrder = 6
     OnClick = BitBtnSaveClick
   end
@@ -128,7 +128,6 @@ object Form1: TForm1
     OnClick = BitBtn8Click
   end
   object SaveDialog1: TSaveDialog
-    Filter = 'Bitmaps|*.bmp'
     Options = [ofOverwritePrompt, ofHideReadOnly, ofPathMustExist, ofEnableSizing]
     Left = 24
     Top = 168
