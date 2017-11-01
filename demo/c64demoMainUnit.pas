@@ -3,6 +3,7 @@ unit c64demoMainUnit;
 //TC64 Delphi class example / demo, v1.0
 //(c)2017 Noniewicz.com
 //created: 20171029
+//updated: 20171101
 
 interface
 
@@ -28,6 +29,11 @@ type
     BitBtnLoad: TBitBtn;
     OpenDialog1: TOpenDialog;
     BitBtn8: TBitBtn;
+    BitBtn9: TBitBtn;
+    BitBtn10: TBitBtn;
+    BitBtn11: TBitBtn;
+    BitBtn12: TBitBtn;
+    BitBtn13: TBitBtn;
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
     procedure BitBtn1Click(Sender: TObject);
@@ -41,6 +47,11 @@ type
     procedure BitBtnLoadClick(Sender: TObject);
     procedure BitBtn7Click(Sender: TObject);
     procedure BitBtn8Click(Sender: TObject);
+    procedure BitBtn9Click(Sender: TObject);
+    procedure BitBtn10Click(Sender: TObject);
+    procedure BitBtn11Click(Sender: TObject);
+    procedure BitBtn12Click(Sender: TObject);
+    procedure BitBtn13Click(Sender: TObject);
   private
     c64: TC64;
     procedure ClearImage;
@@ -58,8 +69,8 @@ implementation
 procedure TForm1.FormCreate(Sender: TObject);
 begin
   c64 := TC64.Create;
-  Image1.Picture.Bitmap.Width := 320;
-  Image1.Picture.Bitmap.Height := 200;
+  Image1.Picture.Bitmap.Width := Image1.Width;
+  Image1.Picture.Bitmap.Height := Image1.Height;
   Image1.Picture.Bitmap.PixelFormat := pf24bit;
   folder := ExtractFilePath(Application.ExeName)+'..\c64-sampledata\';
   SaveDialog1.InitialDir := ExtractFilePath(Application.ExeName);
@@ -75,7 +86,7 @@ procedure TForm1.ClearImage;
 begin
   Image1.Picture.Bitmap.Canvas.Pen.Color := clWhite;
   Image1.Picture.Bitmap.Canvas.Brush.Color := clBlack;
-  Image1.Picture.Bitmap.Canvas.FillRect(RECT(0, 0, 320, 200));
+  Image1.Picture.Bitmap.Canvas.FillRect(RECT(0, 0, Image1.Picture.Bitmap.Width, Image1.Picture.Bitmap.Height));
 end;
 
 procedure TForm1.BitBtn1Click(Sender: TObject);
@@ -154,9 +165,9 @@ end;
 procedure TForm1.BitBtnAboutClick(Sender: TObject);
 begin
   showmessage('Commodore C-64 images and GFX data viewer/converter Delphi class (TC64) DEMO.'#13#10+
-              '(c)1994-2017 Noniewicz.com'#13#10+
-              '*FREEWARE*'#13#10+
-              'Reads AMICA PAINT, KOALA, HIRES, FONT and MOB (sprite) files.'#13#10+
+              '(c)1994-2017 Noniewicz.com, Jakub Noniewicz aka MoNsTeR/GDC'#13#10+
+              '*FREEWARE*'#13#10#13#10+
+              'Reads AMICA PAINT, KOALA, HIRES, FONT (8x8 or 16x16) and MOB (sprite) files.'#13#10+
               'Saves only BMP/JPG for now.'#13#10+
               #13#10+
               'Further development possible but not granted.'#13#10+
@@ -165,31 +176,48 @@ begin
               );
 end;
 
+
 procedure TForm1.BitBtnLoadClick(Sender: TObject);
-var fn, ext: string;
 begin
   if OpenDialog1.Execute then
   begin
     ClearImage;
-    fn := OpenDialog1.FileName;
-    ext := uppercase(ExtractFileExt(fn));
-    if ext = '.KOA' then
-      c64.LoadKoalaToBitmap(fn, Image1.Picture.Bitmap.Canvas);
-    if ext = '.PIC' then
-      c64.LoadHiresToBitmap(fn, Image1.Picture.Bitmap.Canvas);
-    if ext = '.[B]' then
-      c64.LoadAmicaToBitmap(fn, Image1.Picture.Bitmap.Canvas);
-    if ext = '.GFX' then
-      c64.LoadLogoToBitmap(fn, Image1.Picture.Bitmap.Canvas, 1);
-    if ext = '.FNT' then
-      c64.LoadFontToBitmap(fn, Image1.Picture.Bitmap.Canvas);
-    if ext = '.FNB' then
-      c64.LoadFont2x2ToBitmap(fn, Image1.Picture.Bitmap.Canvas);
-    if ext = '.MOB' then
-      c64.LoadMobToBitmap(fn, Image1.Picture.Bitmap.Canvas, false);
-    if ext = '.MBF' then
-      c64.LoadMobToBitmap(fn, Image1.Picture.Bitmap.Canvas, true);
+    if c64.LoadC64ToBitmap(OpenDialog1.FileName, Image1.Picture.Bitmap.Canvas) <> 0 then
+      showmessage('ERROR: '+c64.LastError);
   end;
+end;
+
+procedure TForm1.BitBtn9Click(Sender: TObject);
+begin
+  ClearImage;
+  c64.LoadFliToBitmap(folder+'intel.ifli', Image1.Picture.Bitmap.Canvas);
+  showmessage('DEBUG: '+c64.LastError);
+end;
+
+procedure TForm1.BitBtn10Click(Sender: TObject);
+begin
+  ClearImage;
+  c64.LoadFliToBitmap(folder+'kira.bfli', Image1.Picture.Bitmap.Canvas);
+end;
+
+procedure TForm1.BitBtn11Click(Sender: TObject);
+begin
+  ClearImage;
+  c64.LoadFliToBitmap(folder+'parrot.ffli', Image1.Picture.Bitmap.Canvas);
+  showmessage('DEBUG: parrot: '+c64.LastError);
+end;
+
+procedure TForm1.BitBtn12Click(Sender: TObject);
+begin
+  ClearImage;
+  c64.LoadFliToBitmap(folder+'cpu.fli', Image1.Picture.Bitmap.Canvas);
+end;
+
+procedure TForm1.BitBtn13Click(Sender: TObject);
+begin
+  ClearImage;
+  c64.LoadFliToBitmap(folder+'a.hbm.afli', Image1.Picture.Bitmap.Canvas);
+  showmessage('DEBUG: '+c64.LastError);
 end;
 
 end.

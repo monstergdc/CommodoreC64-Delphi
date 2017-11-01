@@ -1,8 +1,8 @@
 object Form1: TForm1
   Left = 188
   Top = 107
-  Width = 431
-  Height = 290
+  Width = 506
+  Height = 297
   Caption = 'TC64 Delphi class demo'
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
@@ -17,13 +17,13 @@ object Form1: TForm1
   TextHeight = 13
   object Image1: TImage
     Left = 8
-    Top = 8
+    Top = 24
     Width = 320
     Height = 200
   end
   object Label1: TLabel
     Left = 8
-    Top = 216
+    Top = 8
     Width = 72
     Height = 13
     Caption = '320x200 image'
@@ -83,7 +83,7 @@ object Form1: TForm1
     OnClick = BitBtn6Click
   end
   object BitBtnSave: TBitBtn
-    Left = 248
+    Left = 256
     Top = 232
     Width = 75
     Height = 25
@@ -92,7 +92,7 @@ object Form1: TForm1
     OnClick = BitBtnSaveClick
   end
   object BitBtnAbout: TBitBtn
-    Left = 88
+    Left = 96
     Top = 232
     Width = 75
     Height = 25
@@ -110,7 +110,7 @@ object Form1: TForm1
     OnClick = BitBtn7Click
   end
   object BitBtnLoad: TBitBtn
-    Left = 168
+    Left = 176
     Top = 232
     Width = 75
     Height = 25
@@ -126,6 +126,54 @@ object Form1: TForm1
     Caption = 'MFB'
     TabOrder = 10
     OnClick = BitBtn8Click
+  end
+  object BitBtn9: TBitBtn
+    Left = 416
+    Top = 8
+    Width = 75
+    Height = 25
+    Caption = 'IFLI?'
+    Enabled = False
+    TabOrder = 11
+    OnClick = BitBtn9Click
+  end
+  object BitBtn10: TBitBtn
+    Left = 416
+    Top = 40
+    Width = 75
+    Height = 25
+    Caption = 'BFLI'
+    TabOrder = 12
+    OnClick = BitBtn10Click
+  end
+  object BitBtn11: TBitBtn
+    Left = 416
+    Top = 72
+    Width = 75
+    Height = 25
+    Caption = 'FFLI?'
+    Enabled = False
+    TabOrder = 13
+    OnClick = BitBtn11Click
+  end
+  object BitBtn12: TBitBtn
+    Left = 416
+    Top = 104
+    Width = 75
+    Height = 25
+    Caption = 'FLI'
+    TabOrder = 14
+    OnClick = BitBtn12Click
+  end
+  object BitBtn13: TBitBtn
+    Left = 416
+    Top = 136
+    Width = 75
+    Height = 25
+    Caption = 'AFLI?'
+    Enabled = False
+    TabOrder = 15
+    OnClick = BitBtn13Click
   end
   object SaveDialog1: TSaveDialog
     Options = [ofOverwritePrompt, ofHideReadOnly, ofPathMustExist, ofEnableSizing]
