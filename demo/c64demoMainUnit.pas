@@ -96,7 +96,7 @@ end;
 
 procedure TForm1.BitBtn2Click(Sender: TObject);
 begin
-  c64.LoadHiresToBitmap(folder+'ZX-FLORD.PIC', Image1.Picture.Bitmap.Canvas);
+  c64.LoadHiresToBitmap(folder+'ZX-FLORD.PIC', Image1.Picture.Bitmap.Canvas, C64_HIRES);
 end;
 
 procedure TForm1.BitBtn3Click(Sender: TObject);
