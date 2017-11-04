@@ -1,8 +1,8 @@
 unit c64;
 
 //------------------------------------------------------------------------------
-//Commodore C-64 GFX files manipulation Delphi class, v1.31
-//(c)1994,1995, 2009-2011, 2017 Noniewicz.com, Jakub Noniewicz aka MoNsTeR/GDC
+//Commodore C-64 GFX files manipulation Delphi class, v1.32
+//(c)1994, 1995, 2009-2011, 2017 Noniewicz.com, Jakub Noniewicz aka MoNsTeR/GDC
 //E-mail: monster@Noniewicz.com
 //WWW: http://www.Noniewicz.com
 //Licence: BSD 2-Clause License
@@ -20,7 +20,7 @@ unit c64;
 //updated: 20171101 2105-2130
 //updated: 20171101 2200-2255
 //updated: 20171104 1920-2000
-//updated: 20171105 0020-0035
+//updated: 20171105 0020-0045
 
 {todo:
 # MAIN:
@@ -28,11 +28,12 @@ unit c64;
 - ftn/fntb/mob - more/misc (eg get given one, hires v multi)
 .- *FLI formats
 - more exotic formats
+- filnal RGB color - get via one common call with limit check / prep 4 palletes
 # NEXT:
 - Lazarus friendly (laz demo too, compile+check on Linux)
 - separate load and bmp/canvas pack
-- more palletes
-- bfli seems cut?
+- ADD: more palletes
+- FIX: bfli seems cut?
 # LATER:
 - add misc limit checks
 - also open source c64pas app
@@ -61,7 +62,9 @@ unit c64;
 - universal loader method (file extension based)
 - misc fixes/changes
 # v1.31
-- added Hi-Eddi (.hed) format 
+- added Hi-Eddi (.hed) format
+# v1.32
+- added AAS and HPI (untested) support
 }
 
 interface
@@ -201,7 +204,10 @@ begin
   result := C64_UNKNOWN;
 
   if (e = '.KOA') or (e = '.KLA') then result := C64_KOALA;
-  if (e = '.PIC') or (e = '.ART') or (e = '.OCP') then result := C64_HIRES;
+  
+  //Art Studio 1.0-1.1 (by OCP) (pc-ext: .aas;.art;.hpi) -- Deep_Strike.aas
+  if (e = '.PIC') or (e = '.ART') or (e = '.OCP') or (e = '.AAS') or (e = '.HPI') then
+    result := C64_HIRES;
   if (e = '.[B]') or (e = '.AMI') then result := C64_AMICA; //note: '[B]' invented here
   if e = '.GFX' then result := C64_LOGO;  //note: invented here
   if e = '.FNT' then result := C64_FNT;
@@ -222,14 +228,6 @@ begin
 
 (* lookup more-to-implement folder for:
 Doodle (by OMNI) (pc-ext: .dd;.ddl;.jj) -- godot.JJ / JJMACROSS.JJ / midear.dd
-
-Art Studio 1.0-1.1 (by OCP) (pc-ext: .aas;.art;.hpi) -- Deep_Strike.aas
-
-load address: $2000 - $432E
-$2000 - $3f3f 	Bitmap
-$3f40 - $4327 	Screen RAM
-$4328 	Border
-
 Hires-Interlace v1.0 (Feniks) (pc-ext: .hlf) -- LOGOFENIKS.HLF
 Paint Magic (pc-ext: .pmg) -- UNIHORSE.PMG
 RunPaint (pc-ext: .rpm) -- STILLIFE.rpm
