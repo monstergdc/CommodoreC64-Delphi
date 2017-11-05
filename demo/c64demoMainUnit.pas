@@ -107,7 +107,7 @@ end;
 
 procedure TForm1.BitBtn4Click(Sender: TObject);
 begin
-  c64.LoadLogoToBitmap(folder+'MYLOGOV2.GFX', Image1.Picture.Bitmap.Canvas, 1);
+  c64.LoadLogoToBitmap(folder+'MYLOGOV2.GFX', Image1.Picture.Bitmap.Canvas);
 end;
 
 procedure TForm1.BitBtn5Click(Sender: TObject);
