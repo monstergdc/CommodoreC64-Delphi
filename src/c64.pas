@@ -1,7 +1,7 @@
 unit c64;
 
 //------------------------------------------------------------------------------
-//Commodore C-64 GFX files manipulation Delphi (7+) class, v1.35
+//Commodore C-64 GFX files manipulation Delphi (7+) class, v1.36
 //(c)1994, 1995, 2009-2011, 2017 Noniewicz.com, Jakub Noniewicz aka MoNsTeR/GDC
 //E-mail: monster@Noniewicz.com
 //WWW: http://www.Noniewicz.com
@@ -18,6 +18,8 @@ unit c64;
 //- Hi-Eddi (by Markt & Technik Verlag) (pc-ext: .hed)
 //- Doodle (by OMNI) (pc-ext: .dd;.ddl;.jj) -- .jj NOT YET
 //- RunPaint (pc-ext: .rpm)
+//- Image System (Hires) (.ish)
+//- Image System (Multicolor) (pc-ext: .ism;.ims)
 //- Amica Paint (by OLIVER STILLER/MDG) (pc-ext: .ami)
 //- FLI Graph 2.2 (by blackmail) (pc-ext: .bml)
 //- AFLI-editor v2.0 (by Topaz Beerline) (pc-ext: .afl)
@@ -43,7 +45,8 @@ unit c64;
 //updated: 20171105 1210-1315
 //updated: 20171105 1330-1340
 //updated: 20171105 1455-1520
-//updated: 20171105 1550-1625
+//updated: 20171105 1550-1630
+//updated: 20171105 1830-2015 ...
 
 {todo:
 # MAIN:
@@ -92,6 +95,10 @@ unit c64;
 - added support for Wigmore Artist64 (.a64)
 # v1.35
 - added support for RunPaint (.rpm)
+# v1.36
+- added support for Image System (Hires) (.ish)
+- added support for Image System (Multicolor) (.ism;.ims)
+
 }
 
 interface
@@ -146,8 +153,8 @@ TAmicaBuff = array[0..32767] of byte;
 
 TC64Pallete = (VICE_PAL);
 
-TC64FileType = (C64_UNKNOWN, C64_KOALA, C64_WIGMORE, C64_RUNPAINT,
-                C64_HIRES, C64_HED, C64_DDL,
+TC64FileType = (C64_UNKNOWN, C64_KOALA, C64_WIGMORE, C64_RUNPAINT, C64_ISM,
+                C64_HIRES, C64_HED, C64_DDL, C64_ISH,
                 C64_AMICA,
                 C64_LOGO, C64_FNT, C64_FNTB, C64_MOB, C64_MBF,
                 C64_FLI, C64_AFLI, C64_BFLI, C64_IFLI, C64_FFLI);
@@ -173,9 +180,11 @@ private
   procedure KOALAload(ca: TCanvas);
   procedure WIGMOREload(ca: TCanvas);
   procedure RUNPAINTload(ca: TCanvas);
+  procedure IMGSYSload(ca: TCanvas);
   procedure HIRESload(ca: TCanvas);
   procedure HIRESloadHED(ca: TCanvas);
   procedure HIRESloadDDL(ca: TCanvas);
+  procedure HIRESloadISH(ca: TCanvas);
   procedure AMICAload(ca: TCanvas);
   procedure AMICAunpack(i_buff: TAmicaBuff; var o_buff: TAmicaBuff);
   procedure AMICA2KOALA(o_buff: TAmicaBuff; var koala: KOALAdata);
@@ -252,6 +261,9 @@ begin
   //RunPaint (pc-ext: .rpm)
   if (e = '.RPM') then result := C64_RUNPAINT;
 
+  //Image System (Multicolor) (pc-ext: .ism;.ims) -- Alid.ism
+  if (e = '.ISM') or (e = '.IMS') then result := C64_ISM;
+
   //Art Studio 1.0-1.1 (by OCP) (pc-ext: .aas;.art;.hpi)
   if (e = '.PIC') or (e = '.ART') or (e = '.OCP') or (e = '.AAS') or (e = '.HPI') then
     result := C64_HIRES;
@@ -261,6 +273,9 @@ begin
 
   //Doodle (by OMNI) (pc-ext: .dd;.ddl;.jj)
   if (e = '.DD') or (e = '.DDL') (*or (e = '.JJ')*) then result := C64_DDL;
+
+  //Image System (Hires) (pc-ext: .ish)
+  if (e = '.ISH') then result := C64_ISH;
 
   //Amica Paint
   if (e = '.[B]') or (e = '.AMI') then result := C64_AMICA; //note: '[B]' invented here
@@ -711,6 +726,30 @@ begin
   KOALAshow(koala, ca);
 end;
 
+(*
+Image System (Multicolor) (pc-ext: .ism;.ims)
+load address: $3C00 - $63E8
+$3C00 - $3FE7 	Color RAM
+$4000 - $5F3F 	Bitmap
+$5FFF 	Background
+$6000 - $63E7 	Screen RAM
+*)
+procedure TC64.IMGSYSload(ca: TCanvas);
+var koala: KOALAdata;
+    g: word;
+    none: byte;
+begin
+  if not assigned(ca) then exit;
+  read(f, none, none);
+  for g := 0 to 999 do read(f, koala.ink2[g]);
+  for g := 0 to 23 do read(f, none); //?
+  for g := 0 to 7999 do read(f, koala.bitmap[g]);
+  for g := 0 to 191-1 do read(f, none); //10218-2-1000-1000-24-8000-1 = 191
+  read(f, koala.backGr);
+  for g := 0 to 999 do read(f, koala.ink1[g]);
+  KOALAshow(koala, ca);
+end;
+
 procedure TC64.HIRESload(ca: TCanvas);
 var HIRES: HIRESdata;
     g: word;
@@ -751,6 +790,27 @@ begin
   for g := 0 to 999 do read(f, hires.ink[g]);
   for g := 0 to 7+8+8 do read(f, none); //but why???
   for g := 0 to $7f3f-$6000-1+1 do read(f, hires.bitmap[g]);
+  HIRESshow(hires, ca);
+end;
+
+(*
+Image System (Hires) (pc-ext: .ish)
+load address: $4000 - $63e7
+$4000 - $5f3f 	Bitmap
+$6000 - $63e7 	Screen RAM
+*)
+procedure TC64.HIRESloadISH(ca: TCanvas);
+var HIRES: HIRESdata;
+    g: word;
+    none: byte;
+begin
+  if not assigned(ca) then exit;
+
+  for g := 0 to 999 do hires.ink[g] := 0;  //todo: common
+  for g := 0 to 7999 do hires.bitmap[g] := 0;  //todo: common
+  read(f, none, none);
+  for g := 0 to 7999 do read(f, hires.bitmap[g]);
+  for g := 0 to 999 do read(f, hires.ink[g]);
   HIRESshow(hires, ca);
 end;
 
@@ -1106,6 +1166,7 @@ begin
     C64_KOALA:    result := GenericLoader(FileName, KOALAload, ca, C64_KOALA);
     C64_WIGMORE:  result := GenericLoader(FileName, WIGMOREload, ca, C64_WIGMORE);
     C64_RUNPAINT: result := GenericLoader(FileName, RUNPAINTload, ca, C64_RUNPAINT);
+    C64_ISM:      result := GenericLoader(FileName, IMGSYSload, ca, C64_ISM);
     else result := -1;
   end;
 end;
@@ -1116,6 +1177,7 @@ begin
     C64_HIRES : result := GenericLoader(FileName, HIRESload, ca, mode);
     C64_HED: result := GenericLoader(FileName, HIRESloadHED, ca, mode);
     C64_DDL: result := GenericLoader(FileName, HIRESloadDDL, ca, mode);
+    C64_ISH: result := GenericLoader(FileName, HIRESloadISH, ca, mode);
     else result := -1;
   end;
 end;
@@ -1167,10 +1229,12 @@ begin
     C64_UNKNOWN:  result := -1;
     C64_KOALA,
     C64_WIGMORE,
-    C64_RUNPAINT: result := LoadKoalaToBitmap(FileName, ca, mode);
+    C64_RUNPAINT,
+    C64_ISM:      result := LoadKoalaToBitmap(FileName, ca, mode);
     C64_HIRES,
     C64_HED,
-    C64_DDL:      result := LoadHiresToBitmap(FileName, ca, mode);
+    C64_DDL,
+    C64_ISH:      result := LoadHiresToBitmap(FileName, ca, mode);
     C64_AMICA:    result := LoadAmicaToBitmap(FileName, ca);
     C64_LOGO:     result := LoadLogoToBitmap(FileName, ca, 1);
     C64_FNT:      result := LoadFontToBitmap(FileName, ca);

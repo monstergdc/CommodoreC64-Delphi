@@ -8,6 +8,8 @@ Supported formats include:
 - Hi-Eddi (by Markt & Technik Verlag) (pc-ext: .hed)
 - Doodle (by OMNI) (pc-ext: .dd;.ddl;.jj) -- .jj NOT YET
 - RunPaint (pc-ext: .rpm)
+- Image System (Hires) (.ish)
+- Image System (Multicolor) (.ism;.ims)
 - Amica Paint (by OLIVER STILLER/MDG) (pc-ext: .ami)
 - FLI Graph 2.2 (by blackmail) (pc-ext: .bml)
 - AFLI-editor v2.0 (by Topaz Beerline) (pc-ext: .afl)
