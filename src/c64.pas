@@ -1,7 +1,7 @@
 unit c64;
 
 //------------------------------------------------------------------------------
-//Commodore C-64 GFX files manipulation Delphi class, v1.32
+//Commodore C-64 GFX files manipulation Delphi class, v1.33
 //(c)1994, 1995, 2009-2011, 2017 Noniewicz.com, Jakub Noniewicz aka MoNsTeR/GDC
 //E-mail: monster@Noniewicz.com
 //WWW: http://www.Noniewicz.com
@@ -20,7 +20,9 @@ unit c64;
 //updated: 20171101 2105-2130
 //updated: 20171101 2200-2255
 //updated: 20171104 1920-2000
-//updated: 20171105 0020-0045
+//updated: 20171105 0020-0050
+//updated: 20171105 1210-1315
+//updated: 20171105 1330-1340
 
 {todo:
 # MAIN:
@@ -28,7 +30,7 @@ unit c64;
 - ftn/fntb/mob - more/misc (eg get given one, hires v multi)
 .- *FLI formats
 - more exotic formats
-- filnal RGB color - get via one common call with limit check / prep 4 palletes
+.- final RGB color - get via one common call / prep 4 palletes
 # NEXT:
 - Lazarus friendly (laz demo too, compile+check on Linux)
 - separate load and bmp/canvas pack
@@ -65,6 +67,9 @@ unit c64;
 - added Hi-Eddi (.hed) format
 # v1.32
 - added AAS and HPI (untested) support
+# v1.33
+- added support for FLI Graph 2.2 (.bml)
+- added support for Doodle (dd;.ddl)
 }
 
 interface
@@ -124,7 +129,7 @@ TC64Loader = procedure(ca: TCanvas) of object;
 TAmicaBuff = array[0..32767] of byte;
 
 TC64FileType = (C64_UNKNOWN, C64_KOALA, C64_HIRES, C64_AMICA,
-                C64_HED,
+                C64_HED, C64_DDL,
                 C64_LOGO, C64_FNT, C64_FNTB, C64_MOB, C64_MBF,
                 C64_FLI, C64_AFLI, C64_BFLI, C64_IFLI, C64_FFLI);
 
@@ -148,6 +153,7 @@ private
   procedure KOALAload(ca: TCanvas);
   procedure HIRESload(ca: TCanvas);
   procedure HIRESloadHED(ca: TCanvas);
+  procedure HIRESloadDDL(ca: TCanvas);
   procedure AMICAload(ca: TCanvas);
   procedure AMICAunpack(i_buff: TAmicaBuff; var o_buff: TAmicaBuff);
   procedure AMICA2KOALA(o_buff: TAmicaBuff; var koala: KOALAdata);
@@ -203,42 +209,58 @@ begin
   e := uppercase(ext);
   result := C64_UNKNOWN;
 
+  //Koala Painter 2 (by AUDIO LIGHT) (pc-ext: .koa;.kla;.gg)
   if (e = '.KOA') or (e = '.KLA') then result := C64_KOALA;
-  
-  //Art Studio 1.0-1.1 (by OCP) (pc-ext: .aas;.art;.hpi) -- Deep_Strike.aas
+
+  //Art Studio 1.0-1.1 (by OCP) (pc-ext: .aas;.art;.hpi)
   if (e = '.PIC') or (e = '.ART') or (e = '.OCP') or (e = '.AAS') or (e = '.HPI') then
     result := C64_HIRES;
+
+  //Hi-Eddi (by Markt & Technik Verlag) (pc-ext: .hed) 
+  if (e = '.HED') then result := C64_HED;
+
+  //Doodle (by OMNI) (pc-ext: .dd;.ddl;.jj)
+  if (e = '.DD') or (e = '.DDL') (*or (e = '.JJ')*) then result := C64_DDL;
+
+  //Amica Paint
   if (e = '.[B]') or (e = '.AMI') then result := C64_AMICA; //note: '[B]' invented here
+
   if e = '.GFX' then result := C64_LOGO;  //note: invented here
   if e = '.FNT' then result := C64_FNT;
   if e = '.FNB' then result := C64_FNTB;  //note: invented here
   if e = '.MOB' then result := C64_MOB;   //note: invented here
   if e = '.MBF' then result := C64_MBF;   //note: invented here
 
-  if (e = '.FLI') then result := C64_FLI;
+  //FLI Graph 2.2 (by blackmail) (pc-ext: .bml)
+  if (e = '.FLI') or (e = '.BML') then result := C64_FLI;
 
   //AFLI-editor v2.0 (by Topaz Beerline) (pc-ext: .afl)
   if (e = '.AFLI') or (e = '.AFL') (*or (e = '.HFC')*) then result := C64_AFLI;
+
   if (e = '.BFLI') then result := C64_BFLI;
   if (e = '.FFLI') then result := C64_FFLI;
   if (e = '.IFLI') or (e = '.IFL') (*or (e = '.GUN')*) then result := C64_IFLI;
 
-  //Hi-Eddi (by Markt & Technik Verlag) (pc-ext: .hed) -- HiiEddi.hed
-  if (e = '.HED') then result := C64_HED;
+(*
+Advanced Art Studio 2.0 (by OCP) (pc-ext: .ocp;.art) -- Frontpic.art / gfartist.art / MONALISA.ART / PRODIGY.ART / SIANO.ART
+load address: $2000 - $471F
+$2000 - $3F3F 	Bitmap
+$3F40 - $4327 	Screen RAM
+$4328 	Border
+$4329 	Background
+$4338 - $471F 	Color RAM
+*)
 
 (* lookup more-to-implement folder for:
-Doodle (by OMNI) (pc-ext: .dd;.ddl;.jj) -- godot.JJ / JJMACROSS.JJ / midear.dd
 Hires-Interlace v1.0 (Feniks) (pc-ext: .hlf) -- LOGOFENIKS.HLF
 Paint Magic (pc-ext: .pmg) -- UNIHORSE.PMG
 RunPaint (pc-ext: .rpm) -- STILLIFE.rpm
-Advanced Art Studio 2.0 (by OCP) (pc-ext: .ocp;.art) -- Frontpic.art / gfartist.art / MONALISA.ART / PRODIGY.ART / SIANO.ART
 Wigmore Artist64 (by wigmore) (pc-ext: .a64) -- P-PA3BYI.A64
 Image System (Multicolor) (pc-ext: .ism;.ims) -- Alid.ism
 Drazlace (pc-ext: .drl) -- TESTPACK.Drl
 Hires FLI (by Crest) (pc-ext: .hfc) -- DEMOPIC.HFC
 Hires Manager (by Cosmos) (pc-ext: .him) -- logo.him / logo1.him
-FLI Graph 2.2 (by blackmail) (pc-ext: .bml) -- *.BML
-Funpaint 2 (by Manfred Trenz) (pc-ext: .fp2;.fun) -- KATER.fp2 / appbug.fun / Valsary.fun / Viking.fun 
+Funpaint 2 (by Manfred Trenz) (pc-ext: .fp2;.fun) -- KATER.fp2 / appbug.fun / Valsary.fun / Viking.fun
 Gunpaint (pc-ext: .gun,.ifl) -- Gunpaint.gun / MECENARI.gun
 *)  
 end;
@@ -300,10 +322,10 @@ begin
           vl2 := ((bt1 and pow[bit*2+1]) div pow[bit*2+1]);
           vl := vl1+2*vl2;
           case vl of
-            3: c := RGB(_r[c3], _g[c3], _b[c3]);
-            2: c := RGB(_r[c1], _g[c1], _b[c1]);
-            1: c := RGB(_r[c2], _g[c2], _b[c2]);
-            else c := RGB(_r[c0], _g[c0], _b[c0]);
+            3: c := GetC64Color(c3);
+            2: c := GetC64Color(c1);
+            1: c := GetC64Color(c2);
+            else c := GetC64Color(c0);
           end;
           ca.Pixels[x*8+7-2*bit, (y*8+bt)] := c;
           ca.Pixels[x*8+8-2*bit, (y*8+bt)] := c;
@@ -330,9 +352,9 @@ begin
         for bit := 7 downto 0 do
         begin
           if (bt1 and pow[bit]) = pow[bit] then
-            c := RGB(_r[c2], _g[c2], _b[c2])
+            c := GetC64Color(c2)
           else
-            c := RGB(_r[c1], _g[c1], _b[c1]);
+            c := GetC64Color(c1);
           ca.Pixels[x*8+8-bit, (y*8+bt)] := c;
         end;
       end;
@@ -358,10 +380,10 @@ begin
           vl2 := ((bt2 and pow[bit*2+1]) div pow[bit*2+1]);
           vl := vl1+2*vl2;
           case vl of
-            0: c := RGB(_r[color0], _g[color0], _b[color0]);
-            1: c := RGB(_r[color1], _g[color1], _b[color1]);
-            2: c := RGB(_r[color2], _g[color2], _b[color2]);
-            3: c := RGB(_r[color3], _g[color3], _b[color3]);
+            0: c := GetC64Color(color0); 
+            1: c := GetC64Color(color1);
+            2: c := GetC64Color(color2);
+            3: c := GetC64Color(color3);
           end;
           ca.Pixels[x*8+7-2*bit, (y*8+bt)] := c;
           ca.Pixels[x*8+8-2*bit, (y*8+bt)] := c;
@@ -385,7 +407,7 @@ begin
       if vl = 0 then
         c := 0
       else
-        c := RGB(255, 255, 255);
+        c := GetC64Color(15);
       ca.pixels[x0+8-bit, y0+y] := c;
     end;
   end;
@@ -489,7 +511,7 @@ begin
           else
             b := fli.chrmem[y mod 8][ind] mod 16;
         end;
-        ca.Pixels[x, y] := RGB(_r[b], _g[b], _b[b]);
+        ca.Pixels[x, y] := GetC64Color(b);
       end;
     end
     else
@@ -520,7 +542,7 @@ begin
             else b := 0;
           end;
         end;
-        ca.Pixels[x, y] := RGB(_r[b], _g[b], _b[b]);
+        ca.Pixels[x, y] := GetC64Color(b);
       end;
     end;
   end;
@@ -618,6 +640,23 @@ begin
   for g := 0 to $3f3f-$2000-1 do read(f, hires.bitmap[g]);
   for g := 0 to $4000-$3f3f-1 do read(f, none);
   for g := 0 to $43e7-$4000-1 do read(f, hires.ink[g]);
+  HIRESshow(hires, ca);
+end;
+
+procedure TC64.HIRESloadDDL(ca: TCanvas);
+var HIRES: HIRESdata;
+    g: word;
+    none: byte;
+begin
+  if not assigned(ca) then exit;
+
+  for g := 0 to 999 do hires.ink[g] := 0;  //todo: common
+  for g := 0 to 7999 do hires.bitmap[g] := 0;  //todo: common
+//9218-1000-8000 = 218
+  read(f, none, none);
+  for g := 0 to 999 do read(f, hires.ink[g]);
+  for g := 0 to 7+8+8 do read(f, none); //but why???
+  for g := 0 to $7f3f-$6000-1 do read(f, hires.bitmap[g]);
   HIRESshow(hires, ca);
 end;
 
@@ -983,13 +1022,12 @@ end;
 
 function TC64.LoadHiresToBitmap(FileName: string; ca: TCanvas; mode: TC64FileType): integer;
 begin
-  if mode = C64_HIRES then
-    result := GenericLoader(FileName, HIRESload, ca, mode)
-  else
-    if mode = C64_HED then
-      result := GenericLoader(FileName, HIRESloadHED, ca, mode)
-    else
-      result := -1;
+  case mode of
+    C64_HIRES : result := GenericLoader(FileName, HIRESload, ca, mode);
+    C64_HED: result := GenericLoader(FileName, HIRESloadHED, ca, mode);
+    C64_DDL: result := GenericLoader(FileName, HIRESloadDDL, ca, mode);
+    else result := -1;
+  end;
 end;
 
 function TC64.LoadAmicaToBitmap(FileName: string; ca: TCanvas): integer;
@@ -1039,7 +1077,8 @@ begin
     C64_UNKNOWN: result := -1;
     C64_KOALA: result := LoadKoalaToBitmap(FileName, ca);
     C64_HIRES,
-    C64_HED:   result := LoadHiresToBitmap(FileName, ca, mode);
+    C64_HED,
+    C64_DDL:   result := LoadHiresToBitmap(FileName, ca, mode);
     C64_AMICA: result := LoadAmicaToBitmap(FileName, ca);
     C64_LOGO:  result := LoadLogoToBitmap(FileName, ca, 1);
     C64_FNT:   result := LoadFontToBitmap(FileName, ca);

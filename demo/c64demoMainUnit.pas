@@ -3,7 +3,7 @@ unit c64demoMainUnit;
 //TC64 Delphi class example / demo, v1.0
 //(c)2017 Noniewicz.com
 //created: 20171029
-//updated: 20171101
+//updated: 20171101, 05
 
 interface
 
@@ -167,7 +167,7 @@ begin
   showmessage('Commodore C-64 images and GFX data viewer/converter Delphi class (TC64) DEMO.'#13#10+
               '(c)1994-2017 Noniewicz.com, Jakub Noniewicz aka MoNsTeR/GDC'#13#10+
               '*FREEWARE*'#13#10#13#10+
-              'Reads AMICA PAINT, KOALA, HIRES, FONT (8x8 or 16x16) and MOB (sprite) files.'#13#10+
+              'Reads various C-64 graphics files.'#13#10+
               'Saves only BMP/JPG for now.'#13#10+
               #13#10+
               'Further development possible but not granted.'#13#10+
