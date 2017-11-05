@@ -60,7 +60,7 @@ object Form1: TForm1
     Top = 8
     Width = 257
     Height = 177
-    Caption = 'Predefined quick exampled'
+    Caption = 'Predefined quick examples'
     TabOrder = 3
     object BitBtn1: TBitBtn
       Left = 8
@@ -177,8 +177,7 @@ object Form1: TForm1
       Top = 144
       Width = 75
       Height = 25
-      Caption = 'AFLI?'
-      Enabled = False
+      Caption = 'AFLI'
       TabOrder = 12
       OnClick = BitBtn13Click
     end

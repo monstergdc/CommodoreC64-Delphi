@@ -217,8 +217,7 @@ end;
 procedure TForm1.BitBtn13Click(Sender: TObject);
 begin
   ClearImage;
-  c64.LoadFliToBitmap(folder+'a.hbm.afli', Image1.Picture.Bitmap.Canvas);
-  showmessage('DEBUG: '+c64.LastError);
+  c64.LoadFliToBitmap(folder+'logo.afl', Image1.Picture.Bitmap.Canvas);
 end;
 
 end.
