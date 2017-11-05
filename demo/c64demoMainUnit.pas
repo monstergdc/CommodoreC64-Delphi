@@ -15,19 +15,20 @@ uses
 type
   TForm1 = class(TForm)
     Image1: TImage;
+    Label1: TLabel;
+    BitBtnSave: TBitBtn;
+    BitBtnAbout: TBitBtn;
+    SaveDialog1: TSaveDialog;
+    BitBtnLoad: TBitBtn;
+    OpenDialog1: TOpenDialog;
+    GroupBox1: TGroupBox;
     BitBtn1: TBitBtn;
     BitBtn2: TBitBtn;
     BitBtn3: TBitBtn;
     BitBtn4: TBitBtn;
     BitBtn5: TBitBtn;
-    Label1: TLabel;
     BitBtn6: TBitBtn;
-    BitBtnSave: TBitBtn;
-    BitBtnAbout: TBitBtn;
-    SaveDialog1: TSaveDialog;
     BitBtn7: TBitBtn;
-    BitBtnLoad: TBitBtn;
-    OpenDialog1: TOpenDialog;
     BitBtn8: TBitBtn;
     BitBtn9: TBitBtn;
     BitBtn10: TBitBtn;

@@ -1,11 +1,30 @@
 unit c64;
 
 //------------------------------------------------------------------------------
-//Commodore C-64 GFX files manipulation Delphi class, v1.34
+//Commodore C-64 GFX files manipulation Delphi (7+) class, v1.35
 //(c)1994, 1995, 2009-2011, 2017 Noniewicz.com, Jakub Noniewicz aka MoNsTeR/GDC
 //E-mail: monster@Noniewicz.com
 //WWW: http://www.Noniewicz.com
 //Licence: BSD 2-Clause License
+//------------------------------------------------------------------------------
+//based on my own earlier work (Koala/ArtStudio/Amica/Fonts/Sprites)
+//and this:
+//http://codebase64.org/doku.php?id=base:c64_grafix_files_specs_list_v0.03
+//------------------------------------------------------------------------------
+//Supported formats:
+//- Koala Painter 2 (by AUDIO LIGHT) (pc-ext: .koa;.kla;.gg) -- .gg NOT YET
+//- Wigmore Artist64 (by wigmore) (pc-ext: .a64)
+//- Art Studio 1.0-1.1 (by OCP) (pc-ext: .aas;.art;.hpi)
+//- Hi-Eddi (by Markt & Technik Verlag) (pc-ext: .hed)
+//- Doodle (by OMNI) (pc-ext: .dd;.ddl;.jj) -- .jj NOT YET
+//- RunPaint (pc-ext: .rpm)
+//- Amica Paint (by OLIVER STILLER/MDG) (pc-ext: .ami)
+//- FLI Graph 2.2 (by blackmail) (pc-ext: .bml)
+//- AFLI-editor v2.0 (by Topaz Beerline) (pc-ext: .afl)
+//- some other *FLI formats -- IN PROGRESS 
+//- 8x8 and 16x16 font (hires/multicolor) - YET UNFINISHED
+//- sprites (hires/multicolor, also font sprited) - YET UNFINISHED
+//- "logo" text format (using fonts in text mode to represent graphics)
 //------------------------------------------------------------------------------
 //History:
 //created: somewhere in 1994-1995
@@ -23,15 +42,16 @@ unit c64;
 //updated: 20171105 0020-0050
 //updated: 20171105 1210-1315
 //updated: 20171105 1330-1340
-//updated: 20171105 1455-15
+//updated: 20171105 1455-1520
+//updated: 20171105 1550-1625
 
 {todo:
 # MAIN:
-- fnt/fntb/logo/mob - colors issue? (proper params)
+.- fnt/fntb/logo/mob - colors issue? (proper params) - use four_colors
 - ftn/fntb/mob - more/misc (eg get given one, hires v multi)
 .- *FLI formats
 - more exotic formats
-.- final RGB color - get via one common call / prep 4 palletes
+.- final RGB color - get via one common call 
 # NEXT:
 - Lazarus friendly (laz demo too, compile+check on Linux)
 - separate load and bmp/canvas pack
@@ -39,28 +59,25 @@ unit c64;
 - FIX: bfli seems cut?
 # LATER:
 - add misc limit checks
+- add deeper byte format detection
 - also open source c64pas app
 - pack back to C64 formats and write (colormap?)
-- ZX analogue (6144/768/6912?
+- ZX analogue (6144/768/6912)?
 - C code version (so more portable) ?
-- see this
-  http://fileformats.archiveteam.org/wiki/Commodore_graphics_formats
-  http://codebase64.org/doku.php?id=base:c64_grafix_files_specs_list_v0.03
-  https://www.c64-wiki.com/wiki/Graphics_Modes
 }
 
 {CHANGELOG:
-# v1.0
+# v1.00
 - base stuff, old version in Turbo Pascal, so ancient
-# v1.1
+# v1.10
 - slightly rewritten for Delphi (then named mob64.pas)
-# v1.2
+# v1.20
 - radical code cleanup
 - everything as class
 - amica code integrated
 - demo app
 - misc
-# v1.3
+# v1.30
 - added FLI formats (experimental, unfinished)
 - universal loader method (file extension based)
 - misc fixes/changes
@@ -73,6 +90,8 @@ unit c64;
 - added support for Doodle (dd;.ddl)
 # v1.34
 - added support for Wigmore Artist64 (.a64)
+# v1.35
+- added support for RunPaint (.rpm)
 }
 
 interface
@@ -106,12 +125,6 @@ type
                    bitmap: array[0..$3f40-$2000-1] of byte;
                    ink: array[0..$8328-$7f40-1] of byte;
                  end;
-(* unused
-     AMICAdata = record
-                   len: word;
-                   bmp: array[0..40*256-1] of byte;
-                 end;
-*)
      FLIdata = record //generic, any FLI
                  gfxmem: array[0..16384-1] of byte;
                  chrmem: array[0..7, 0..2048-1] of byte;
@@ -131,7 +144,9 @@ TC64Loader = procedure(ca: TCanvas) of object;
 
 TAmicaBuff = array[0..32767] of byte;
 
-TC64FileType = (C64_UNKNOWN, C64_KOALA, C64_WIGMORE,
+TC64Pallete = (VICE_PAL);
+
+TC64FileType = (C64_UNKNOWN, C64_KOALA, C64_WIGMORE, C64_RUNPAINT,
                 C64_HIRES, C64_HED, C64_DDL,
                 C64_AMICA,
                 C64_LOGO, C64_FNT, C64_FNTB, C64_MOB, C64_MBF,
@@ -140,22 +155,24 @@ TC64FileType = (C64_UNKNOWN, C64_KOALA, C64_WIGMORE,
 TC64 = class(TObject)
 private
   f: file of byte;
-  color1_: byte;
+  four_colors: array [0..3] of byte;
   FLastError: string;
+  FPalette: TC64Pallete;
   function GenericLoader(FileName: string; callback: TC64Loader; ca: TCanvas; mode: TC64FileType): integer;
 
   procedure KOALAshow(koala: KOALAdata; ca: TCanvas);
   procedure HIRESshow(hires: HIRESdata; ca: TCanvas);
   procedure LOGOshow(logo: LOGOdata; ca: TCanvas; color0, color1, color2, color3: byte);
   procedure FNTshow(x0, y0: integer; fnt: FNTdata; ca: TCanvas; cnt: byte);
-  procedure FNTBshow(x0, y0: integer; fntb: FNTBdata; ca: TCanvas; cnt: byte; color1: byte);
-  procedure hMOBshow(x0, y0: integer; mob: MOBdata; ca: TCanvas; cnt: byte; color1: byte);
+  procedure FNTBshow(x0, y0: integer; fntb: FNTBdata; ca: TCanvas; cnt: byte; color0, color1, color2, color3: byte);
+  procedure hMOBshow(x0, y0: integer; mob: MOBdata; ca: TCanvas; cnt: byte);
   procedure mMOBshow(x0, y0: integer; mob: MOBdata; ca: TCanvas; cnt: byte; color1: byte);
   procedure FLIshow(fli: FLIdata; ca: TCanvas; mode: TC64FileType);
   procedure IFLIshow(ifli: IFLIdata; ca: TCanvas);
 
   procedure KOALAload(ca: TCanvas);
   procedure WIGMOREload(ca: TCanvas);
+  procedure RUNPAINTload(ca: TCanvas);
   procedure HIRESload(ca: TCanvas);
   procedure HIRESloadHED(ca: TCanvas);
   procedure HIRESloadDDL(ca: TCanvas);
@@ -169,6 +186,7 @@ private
   procedure MOBloadMulticolor(ca: TCanvas);
   procedure FLIload(ca: TCanvas);  
 public
+  constructor Create;
   function GetC64Color(index: integer): TColor;
   function ExtMapper(ext: string): TC64FileType;
   function LoadKoalaToBitmap(FileName: string; ca: TCanvas; mode: TC64FileType): integer;
@@ -183,29 +201,40 @@ public
   function LoadC64ToBitmap(FileName: string; ca: TCanvas): integer;  
 published
   property LastError: string read FLastError;
+  property Palette: TC64Pallete read FPalette write FPalette;
 end;
 
 
 implementation
 
-//VICE pallete ccs64.vpl
-//black,white,red,cyan,magenta,green,blue,yellow
-//orange,brown,pink,dk.gray,gray,lt.green,lt.blue,lt.gray
 const
-  _r: array[0..15] of byte = (0,$ff,$e0,$60,$e0,$40,$40,$ff, $e0,$9c,$ff,$54,$88,$a0,$a0,$c0);
-  _g: array[0..15] of byte = (0,$ff,$40,$ff,$60,$e0,$40,$ff, $a0,$74,$a0,$54,$88,$ff,$a0,$c0);
-  _b: array[0..15] of byte = (0,$ff,$40,$ff,$e0,$40,$e0,$40, $40,$48,$a0,$54,$88,$a0,$ff,$c0);
+//0..15 = black,white,red,cyan,magenta,green,blue,yellow
+//orange,brown,pink,dk.gray,gray,lt.green,lt.blue,lt.gray
+
+//VICE pallete ccs64.vpl
+  vice_r: array[0..15] of byte = (0,$ff,$e0,$60,$e0,$40,$40,$ff, $e0,$9c,$ff,$54,$88,$a0,$a0,$c0);
+  vice_g: array[0..15] of byte = (0,$ff,$40,$ff,$60,$e0,$40,$ff, $a0,$74,$a0,$54,$88,$ff,$a0,$c0);
+  vice_b: array[0..15] of byte = (0,$ff,$40,$ff,$e0,$40,$e0,$40, $40,$48,$a0,$54,$88,$a0,$ff,$c0);
 
   pow: array[0..7] of byte = (1, 2, 4, 8, 16, 32, 64, 128);
 
 
+
+constructor TC64.Create;
+begin
+  inherited;
+  FPalette := VICE_PAL;
+end;
 
 function TC64.GetC64Color(index: integer): TColor;
 begin
   if not (index in [0..15]) then
     result := 0
   else
-    result := RGB(_r[index], _g[index], _b[index]);
+    case FPalette of
+      VICE_PAL: result := RGB(vice_r[index], vice_g[index], vice_b[index]);
+      else result := 0;
+    end;
 end;
 
 function TC64.ExtMapper(ext: string): TC64FileType;
@@ -219,6 +248,9 @@ begin
 
   //Wigmore Artist64 (by wigmore) (pc-ext: .a64)
   if (e = '.A64') then result := C64_WIGMORE;
+
+  //RunPaint (pc-ext: .rpm)
+  if (e = '.RPM') then result := C64_RUNPAINT;
 
   //Art Studio 1.0-1.1 (by OCP) (pc-ext: .aas;.art;.hpi)
   if (e = '.PIC') or (e = '.ART') or (e = '.OCP') or (e = '.AAS') or (e = '.HPI') then
@@ -262,7 +294,6 @@ $4338 - $471F 	Color RAM
 (* lookup more-to-implement folder for:
 Hires-Interlace v1.0 (Feniks) (pc-ext: .hlf) -- LOGOFENIKS.HLF
 Paint Magic (pc-ext: .pmg) -- UNIHORSE.PMG
-RunPaint (pc-ext: .rpm) -- STILLIFE.rpm
 Image System (Multicolor) (pc-ext: .ism;.ims) -- Alid.ism
 Drazlace (pc-ext: .drl) -- TESTPACK.Drl
 Hires FLI (by Crest) (pc-ext: .hfc) -- DEMOPIC.HFC
@@ -387,10 +418,11 @@ begin
           vl2 := ((bt2 and pow[bit*2+1]) div pow[bit*2+1]);
           vl := vl1+2*vl2;
           case vl of
-            0: c := GetC64Color(color0); 
+            0: c := GetC64Color(color0);
             1: c := GetC64Color(color1);
             2: c := GetC64Color(color2);
             3: c := GetC64Color(color3);
+            else c := GetC64Color(0);
           end;
           ca.Pixels[x*8+7-2*bit, (y*8+bt)] := c;
           ca.Pixels[x*8+8-2*bit, (y*8+bt)] := c;
@@ -420,7 +452,7 @@ begin
   end;
 end;
 
-procedure TC64.FNTBshow(x0, y0: integer; fntb: FNTBdata; ca: TCanvas; cnt: byte; color1: byte);
+procedure TC64.FNTBshow(x0, y0: integer; fntb: FNTBdata; ca: TCanvas; cnt: byte; color0, color1, color2, color3: byte);
 var x, y, bit, bt, vl1, vl2, vl, c: byte;
     cl: TColor;
 begin
@@ -436,14 +468,20 @@ begin
         vl1 := (bt and pow[bit*2]) div pow[bit*2];
         vl2 := (bt and pow[bit*2+1]) div pow[bit*2+1];
         vl := vl1+2*vl2;
-        cl := RGB(_r[vl], _g[vl], _b[vl]);
+        case vl of
+          0: cl := GetC64Color(color0);
+          1: cl := GetC64Color(color1);
+          2: cl := GetC64Color(color2);
+          3: cl := GetC64Color(color3);
+          else cl := GetC64Color(0);
+        end;
         ca.Pixels[x0+x*8+7-2*bit, y0+y] := cl;
         ca.Pixels[x0+x*8+8-2*bit, y0+y] := cl;
       end;
     end;
 end;
 
-procedure TC64.hMOBshow(x0, y0: integer; mob: MOBdata; ca: TCanvas; cnt: byte; color1: byte);
+procedure TC64.hMOBshow(x0, y0: integer; mob: MOBdata; ca: TCanvas; cnt: byte);
 var x, y, bit, bt, vl : byte;
     cl: TColor;
 begin
@@ -456,7 +494,10 @@ begin
       for bit := 7 downto 0 do
       begin
         vl := (bt and pow[bit]) div pow[bit];
-        cl := RGB(_r[vl], _g[vl], _b[vl]);
+        if vl = 0 then
+          cl := GetC64Color(0)
+        else
+          cl := GetC64Color(15);
         ca.Pixels[x0+x*8+7-bit, y0+y] := cl;
       end
     end;
@@ -477,7 +518,7 @@ begin
         vl1 := (bt and pow[bit*2]) div pow[bit*2];
         vl2 := (bt and pow[bit*2+1]) div pow[bit*2+1];
         vl := vl1+2*vl2;
-        cl := RGB(_r[vl], _g[vl], _b[vl]);
+        cl := RGB(vice_r[vl], vice_g[vl], vice_b[vl]);
         ca.Pixels[x0+x*8+7-2*bit, y0+y] := cl;
         ca.Pixels[x0+x*8+8-2*bit, y0+y] := cl;
       end;
@@ -591,17 +632,17 @@ begin
         3: c1 := ifli.colmem[ind] and $0f;
       end;
 
-	    buffer[6*x+0] := (buffer[6*x+0] + _r[c0]) div 2;
-	    buffer[6*x+1] := (buffer[6*x+1] + _g[c0]) div 2;
-	    buffer[6*x+2] := (buffer[6*x+2] + _b[c0]) div 2;
+	    buffer[6*x+0] := (buffer[6*x+0] + vice_r[c0]) div 2;
+	    buffer[6*x+1] := (buffer[6*x+1] + vice_g[c0]) div 2;
+	    buffer[6*x+2] := (buffer[6*x+2] + vice_b[c0]) div 2;
 
-	    buffer[6*x+3] := (_r[c1] + _r[c0]) div 2;
-	    buffer[6*x+4] := (_g[c1] + _g[c0]) div 2;
-	    buffer[6*x+5] := (_b[c1] + _b[c0]) div 2;
+	    buffer[6*x+3] := (vice_r[c1] + vice_r[c0]) div 2;
+	    buffer[6*x+4] := (vice_g[c1] + vice_g[c0]) div 2;
+	    buffer[6*x+5] := (vice_b[c1] + vice_b[c0]) div 2;
 
-	    buffer[6*x+6] := _r[c1];
-	    buffer[6*x+7] := _g[c1];
-	    buffer[6*x+8] := _b[c1];
+	    buffer[6*x+6] := vice_r[c1];
+	    buffer[6*x+7] := vice_g[c1];
+	    buffer[6*x+8] := vice_b[c1];
     end;
     for x := 0 to 320-1 do
       ca.Pixels[x, y] := RGB(buffer[x*3+0], buffer[x*3+1], buffer[x*3+2]);
@@ -645,6 +686,28 @@ begin
   for g := 0 to $6400-$63E7-1-1 do read(f, none); //?
   for g := 0 to 999 do read(f, koala.ink2[g]);
   read(f, koala.backGr); //todo: chk this one
+  KOALAshow(koala, ca);
+end;
+
+(*
+RunPaint (pc-ext: .rpm)
+load address: $6000 - $8710
+$6000 - $7F3F 	Bitmap
+$7F40 - $8327 	Screen RAM
+$8328 - $870F 	Color RAM
+$8710 	Background
+*)
+procedure TC64.RUNPAINTload(ca: TCanvas);
+var koala: KOALAdata;
+    g: word;
+    none: byte;
+begin
+  if not assigned(ca) then exit;
+  read(f, none, none);
+  for g := 0 to 7999 do read(f, koala.bitmap[g]);
+  for g := 0 to 999 do read(f, koala.ink1[g]);
+  for g := 0 to 999 do read(f, koala.ink2[g]);
+  read(f, koala.backGr); 
   KOALAshow(koala, ca);
 end;
 
@@ -693,20 +756,11 @@ end;
 
 procedure TC64.AMICAload(ca: TCanvas);
 var koala: KOALAdata;
-//    AMICA: AMICAdata;
-//    g: word;
-//    none: byte;
     i_buff, o_buff: TAmicaBuff;
     b, i: integer;
     c: byte;
 begin
   if not assigned(ca) then exit;
-
-(*
-  amica.len := filesize(f)-2;
-  read(f, none, none);
-  for g := 0 to amica.len-1 do read(f, amica.bmp[g]);
-*)
 
   b := 0;
   while not eof(f) and (b < 32768) do
@@ -815,13 +869,13 @@ begin
   for g := 1 to 64 do for h := 0 to 7 do read(f, fntb.fntb[g, h+24]);
 
   for h := 1 to 20 do
-    FNTBshow(h*16-16, 0, fntb, ca, (h), color1_);
+    FNTBshow(h*16-16, 0, fntb, ca, (h), 0, 1, 15, 2);
   for h := 1 to 20 do
-    FNTBshow(h*16-16, 16, fntb, ca, (20+h), color1_);
+    FNTBshow(h*16-16, 16, fntb, ca, (20+h), 0, 1, 15, 2);
   for h := 1 to 20 do
-    FNTBshow(h*16-16, 32, fntb, ca, (40+h), color1_);
+    FNTBshow(h*16-16, 32, fntb, ca, (40+h), 0, 1, 15, 2);
   for h := 1 to 4 do
-    FNTBshow(h*16-16, 48, fntb, ca, (60+h), color1_);
+    FNTBshow(h*16-16, 48, fntb, ca, (60+h), 0, 1, 15, 2);
 end;
 
 procedure TC64.MOBloadHires(ca: TCanvas);
@@ -847,7 +901,7 @@ begin
 
   for g := 1 to 13 do
     if g <= mob.cnt then
-      hMOBshow(g*24-24, 0, mob, ca, (g), color1_); //todo: more
+      hMOBshow(g*24-24, 0, mob, ca, (g)); //todo: more
 end;
 
 procedure TC64.MOBloadMulticolor(ca: TCanvas);
@@ -873,7 +927,7 @@ begin
 
   for g := 1 to 13 do
     if g <= mob.cnt then
-      hMOBshow(g*24-24, 0, mob, ca, (g), color1_); //todo: more
+      mMOBshow(g*24-24, 0, mob, ca, (g), four_colors[1]); //todo: more
 end;
 
 procedure TC64.FLIload(ca: TCanvas);
@@ -1048,13 +1102,12 @@ end;
 
 function TC64.LoadKoalaToBitmap(FileName: string; ca: TCanvas; mode: TC64FileType): integer;
 begin
-  if mode = C64_KOALA then
-    result := GenericLoader(FileName, KOALAload, ca, C64_KOALA)
-  else
-    if mode = C64_WIGMORE then
-      result := GenericLoader(FileName, WIGMOREload, ca, C64_WIGMORE)
-    else
-      result := -1;
+  case mode of
+    C64_KOALA:    result := GenericLoader(FileName, KOALAload, ca, C64_KOALA);
+    C64_WIGMORE:  result := GenericLoader(FileName, WIGMOREload, ca, C64_WIGMORE);
+    C64_RUNPAINT: result := GenericLoader(FileName, RUNPAINTload, ca, C64_RUNPAINT);
+    else result := -1;
+  end;
 end;
 
 function TC64.LoadHiresToBitmap(FileName: string; ca: TCanvas; mode: TC64FileType): integer;
@@ -1074,7 +1127,7 @@ end;
 
 function TC64.LoadLogoToBitmap(FileName: string; ca: TCanvas; color1: byte): integer;
 begin
-  color1_ := color1;
+  four_colors[1] := color1;
   result := GenericLoader(FileName, LOGOload, ca, C64_LOGO);
 end;
 
@@ -1113,21 +1166,22 @@ begin
   case mode of
     C64_UNKNOWN:  result := -1;
     C64_KOALA,
-    C64_WIGMORE: result := LoadKoalaToBitmap(FileName, ca, mode);
+    C64_WIGMORE,
+    C64_RUNPAINT: result := LoadKoalaToBitmap(FileName, ca, mode);
     C64_HIRES,
     C64_HED,
-    C64_DDL:     result := LoadHiresToBitmap(FileName, ca, mode);
-    C64_AMICA:   result := LoadAmicaToBitmap(FileName, ca);
-    C64_LOGO:    result := LoadLogoToBitmap(FileName, ca, 1);
-    C64_FNT:     result := LoadFontToBitmap(FileName, ca);
-    C64_FNTB:    result := LoadFont2x2ToBitmap(FileName, ca);
-    C64_MOB:     result := LoadMobToBitmap(FileName, ca, false);
-    C64_MBF:     result := LoadMobToBitmap(FileName, ca, true);
+    C64_DDL:      result := LoadHiresToBitmap(FileName, ca, mode);
+    C64_AMICA:    result := LoadAmicaToBitmap(FileName, ca);
+    C64_LOGO:     result := LoadLogoToBitmap(FileName, ca, 1);
+    C64_FNT:      result := LoadFontToBitmap(FileName, ca);
+    C64_FNTB:     result := LoadFont2x2ToBitmap(FileName, ca);
+    C64_MOB:      result := LoadMobToBitmap(FileName, ca, false);
+    C64_MBF:      result := LoadMobToBitmap(FileName, ca, true);
     C64_FLI,
     C64_AFLI,
     C64_BFLI,
     C64_IFLI,
-    C64_FFLI:    result := LoadFliToBitmap(FileName, ca);
+    C64_FFLI:     result := LoadFliToBitmap(FileName, ca);
     else
       result := -1;
   end;
