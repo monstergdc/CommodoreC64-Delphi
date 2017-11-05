@@ -1,7 +1,7 @@
 unit c64;
 
 //------------------------------------------------------------------------------
-//Commodore C-64 GFX files manipulation Delphi class, v1.33
+//Commodore C-64 GFX files manipulation Delphi class, v1.34
 //(c)1994, 1995, 2009-2011, 2017 Noniewicz.com, Jakub Noniewicz aka MoNsTeR/GDC
 //E-mail: monster@Noniewicz.com
 //WWW: http://www.Noniewicz.com
@@ -23,6 +23,7 @@ unit c64;
 //updated: 20171105 0020-0050
 //updated: 20171105 1210-1315
 //updated: 20171105 1330-1340
+//updated: 20171105 1455-15
 
 {todo:
 # MAIN:
@@ -70,6 +71,8 @@ unit c64;
 # v1.33
 - added support for FLI Graph 2.2 (.bml)
 - added support for Doodle (dd;.ddl)
+# v1.34
+- added support for Wigmore Artist64 (.a64)
 }
 
 interface
@@ -128,8 +131,9 @@ TC64Loader = procedure(ca: TCanvas) of object;
 
 TAmicaBuff = array[0..32767] of byte;
 
-TC64FileType = (C64_UNKNOWN, C64_KOALA, C64_HIRES, C64_AMICA,
-                C64_HED, C64_DDL,
+TC64FileType = (C64_UNKNOWN, C64_KOALA, C64_WIGMORE,
+                C64_HIRES, C64_HED, C64_DDL,
+                C64_AMICA,
                 C64_LOGO, C64_FNT, C64_FNTB, C64_MOB, C64_MBF,
                 C64_FLI, C64_AFLI, C64_BFLI, C64_IFLI, C64_FFLI);
 
@@ -151,6 +155,7 @@ private
   procedure IFLIshow(ifli: IFLIdata; ca: TCanvas);
 
   procedure KOALAload(ca: TCanvas);
+  procedure WIGMOREload(ca: TCanvas);
   procedure HIRESload(ca: TCanvas);
   procedure HIRESloadHED(ca: TCanvas);
   procedure HIRESloadDDL(ca: TCanvas);
@@ -166,7 +171,7 @@ private
 public
   function GetC64Color(index: integer): TColor;
   function ExtMapper(ext: string): TC64FileType;
-  function LoadKoalaToBitmap(FileName: string; ca: TCanvas): integer;
+  function LoadKoalaToBitmap(FileName: string; ca: TCanvas; mode: TC64FileType): integer;
   function LoadHiresToBitmap(FileName: string; ca: TCanvas; mode: TC64FileType): integer;
   function LoadAmicaToBitmap(FileName: string; ca: TCanvas): integer;
   function LoadLogoToBitmap(FileName: string; ca: TCanvas; color1: byte): integer;
@@ -212,6 +217,9 @@ begin
   //Koala Painter 2 (by AUDIO LIGHT) (pc-ext: .koa;.kla;.gg)
   if (e = '.KOA') or (e = '.KLA') then result := C64_KOALA;
 
+  //Wigmore Artist64 (by wigmore) (pc-ext: .a64)
+  if (e = '.A64') then result := C64_WIGMORE;
+
   //Art Studio 1.0-1.1 (by OCP) (pc-ext: .aas;.art;.hpi)
   if (e = '.PIC') or (e = '.ART') or (e = '.OCP') or (e = '.AAS') or (e = '.HPI') then
     result := C64_HIRES;
@@ -255,7 +263,6 @@ $4338 - $471F 	Color RAM
 Hires-Interlace v1.0 (Feniks) (pc-ext: .hlf) -- LOGOFENIKS.HLF
 Paint Magic (pc-ext: .pmg) -- UNIHORSE.PMG
 RunPaint (pc-ext: .rpm) -- STILLIFE.rpm
-Wigmore Artist64 (by wigmore) (pc-ext: .a64) -- P-PA3BYI.A64
 Image System (Multicolor) (pc-ext: .ism;.ims) -- Alid.ism
 Drazlace (pc-ext: .drl) -- TESTPACK.Drl
 Hires FLI (by Crest) (pc-ext: .hfc) -- DEMOPIC.HFC
@@ -304,7 +311,7 @@ var x, y, bit, c0, c1, c2, c3, bt, bt1, vl, vl1, vl2: byte;
 begin
   if not assigned(ca) then exit;
 
-  c0 := koala.backGr and $0f; //?
+  c0 := koala.backGr and $0f;
   for x := 0 to 39 do
     for y := 0 to 24 do
     begin
@@ -405,7 +412,7 @@ begin
     begin
       vl := bt and pow[bit];
       if vl = 0 then
-        c := 0
+        c := GetC64Color(0)
       else
         c := GetC64Color(15);
       ca.pixels[x0+8-bit, y0+y] := c;
@@ -617,6 +624,30 @@ begin
   KOALAshow(koala, ca);
 end;
 
+(*
+Wigmore Artist64 (by wigmore) (pc-ext: .a64)
+load address: $4000 - $67FF
+$4000 - $5F3F 	Bitmap
+$6000 - $63E7 	Screen RAM
+$6400 - $67E7 	Color RAM
+$67FF 	Background
+*)
+procedure TC64.WIGMOREload(ca: TCanvas);
+var koala: KOALAdata;
+    g: word;
+    none: byte;
+begin
+  if not assigned(ca) then exit;
+  read(f, none, none);
+  for g := 0 to 7999 do read(f, koala.bitmap[g]);
+  for g := 0 to $6000-$5F3F-1-1 do read(f, none); //?
+  for g := 0 to 999 do read(f, koala.ink1[g]);
+  for g := 0 to $6400-$63E7-1-1 do read(f, none); //?
+  for g := 0 to 999 do read(f, koala.ink2[g]);
+  read(f, koala.backGr); //todo: chk this one
+  KOALAshow(koala, ca);
+end;
+
 procedure TC64.HIRESload(ca: TCanvas);
 var HIRES: HIRESdata;
     g: word;
@@ -656,7 +687,7 @@ begin
   read(f, none, none);
   for g := 0 to 999 do read(f, hires.ink[g]);
   for g := 0 to 7+8+8 do read(f, none); //but why???
-  for g := 0 to $7f3f-$6000-1 do read(f, hires.bitmap[g]);
+  for g := 0 to $7f3f-$6000-1+1 do read(f, hires.bitmap[g]);
   HIRESshow(hires, ca);
 end;
 
@@ -1015,9 +1046,15 @@ end;
 
 //---
 
-function TC64.LoadKoalaToBitmap(FileName: string; ca: TCanvas): integer;
+function TC64.LoadKoalaToBitmap(FileName: string; ca: TCanvas; mode: TC64FileType): integer;
 begin
-  result := GenericLoader(FileName, KOALAload, ca, C64_KOALA);
+  if mode = C64_KOALA then
+    result := GenericLoader(FileName, KOALAload, ca, C64_KOALA)
+  else
+    if mode = C64_WIGMORE then
+      result := GenericLoader(FileName, WIGMOREload, ca, C64_WIGMORE)
+    else
+      result := -1;
 end;
 
 function TC64.LoadHiresToBitmap(FileName: string; ca: TCanvas; mode: TC64FileType): integer;
@@ -1074,22 +1111,23 @@ begin
   FLastError := 'Unknown format extension';
   mode := ExtMapper(ExtractFileExt(FileName));
   case mode of
-    C64_UNKNOWN: result := -1;
-    C64_KOALA: result := LoadKoalaToBitmap(FileName, ca);
+    C64_UNKNOWN:  result := -1;
+    C64_KOALA,
+    C64_WIGMORE: result := LoadKoalaToBitmap(FileName, ca, mode);
     C64_HIRES,
     C64_HED,
-    C64_DDL:   result := LoadHiresToBitmap(FileName, ca, mode);
-    C64_AMICA: result := LoadAmicaToBitmap(FileName, ca);
-    C64_LOGO:  result := LoadLogoToBitmap(FileName, ca, 1);
-    C64_FNT:   result := LoadFontToBitmap(FileName, ca);
-    C64_FNTB:  result := LoadFont2x2ToBitmap(FileName, ca);
-    C64_MOB:   result := LoadMobToBitmap(FileName, ca, false);
-    C64_MBF:   result := LoadMobToBitmap(FileName, ca, true);
+    C64_DDL:     result := LoadHiresToBitmap(FileName, ca, mode);
+    C64_AMICA:   result := LoadAmicaToBitmap(FileName, ca);
+    C64_LOGO:    result := LoadLogoToBitmap(FileName, ca, 1);
+    C64_FNT:     result := LoadFontToBitmap(FileName, ca);
+    C64_FNTB:    result := LoadFont2x2ToBitmap(FileName, ca);
+    C64_MOB:     result := LoadMobToBitmap(FileName, ca, false);
+    C64_MBF:     result := LoadMobToBitmap(FileName, ca, true);
     C64_FLI,
     C64_AFLI,
     C64_BFLI,
     C64_IFLI,
-    C64_FFLI:  result := LoadFliToBitmap(FileName, ca);
+    C64_FFLI:    result := LoadFliToBitmap(FileName, ca);
     else
       result := -1;
   end;

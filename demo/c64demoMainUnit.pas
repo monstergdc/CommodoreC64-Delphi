@@ -91,7 +91,7 @@ end;
 
 procedure TForm1.BitBtn1Click(Sender: TObject);
 begin
-  c64.LoadKoalaToBitmap(folder+'PIC_GDC.koa', Image1.Picture.Bitmap.Canvas);
+  c64.LoadKoalaToBitmap(folder+'PIC_GDC.koa', Image1.Picture.Bitmap.Canvas, C64_KOALA);
 end;
 
 procedure TForm1.BitBtn2Click(Sender: TObject);
