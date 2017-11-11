@@ -1,6 +1,8 @@
 unit c64demoMainUnit;
 
-//TC64 Delphi/Lazarus class example / demo Delphi 7, v1.0
+{$MODE Delphi}
+
+//TC64 Delphi/Lazarus class example / demo Lazarus, v1.0
 //(c)2017 Noniewicz.com
 //created: 20171029
 //updated: 20171101, 05, 11
@@ -8,9 +10,9 @@ unit c64demoMainUnit;
 interface
 
 uses
-  Windows, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
+  LCLIntf, LCLType, LMessages, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
   Dialogs, StdCtrls, Buttons, ExtCtrls,
-  c64, jpeg;
+  c64;
 
 type
   TForm1 = class(TForm)
@@ -85,14 +87,19 @@ var
 
 implementation
 
-{$R *.dfm}
+{$R *.lfm}
 
 procedure TForm1.FormCreate(Sender: TObject);
 var i: integer;
 begin
   c64 := TC64.Create;
   ClearImage(false);
+{$ifdef Win32}
   folder := ExtractFilePath(Application.ExeName)+'..\c64-sampledata\';
+{$endif}
+{$ifdef LINUX}
+  folder := ExtractFilePath(Application.ExeName)+'../c64-sampledata/';
+{$endif}
   SaveDialog1.InitialDir := ExtractFilePath(Application.ExeName);
   OpenDialog1.InitialDir := ExtractFilePath(folder);
 

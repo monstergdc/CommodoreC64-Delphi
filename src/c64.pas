@@ -1,7 +1,11 @@
 unit c64;
 
+{$ifdef FPC}
+{$MODE Delphi}
+{$ENDIF}
+
 //------------------------------------------------------------------------------
-//Commodore C-64 GFX files manipulation Delphi (7+) class, v1.37
+//Commodore C-64 GFX files manipulation Delphi (7+) class, v1.38
 //(c)1994, 1995, 2009-2011, 2017 Noniewicz.com, Jakub Noniewicz aka MoNsTeR/GDC
 //E-mail: monster@Noniewicz.com
 //WWW: http://www.Noniewicz.com
@@ -10,6 +14,7 @@ unit c64;
 //based on my own earlier work (Koala/ArtStudio/Amica/Fonts/Sprites)
 //and this:
 //http://codebase64.org/doku.php?id=base:c64_grafix_files_specs_list_v0.03
+//FLI code - loosely based on C code from C64Gfx by Pasi 'Albert' Ojala
 //------------------------------------------------------------------------------
 //Supported formats:
 //- Koala Painter 2 (by AUDIO LIGHT) (pc-ext: .koa;.kla;.gg) -- .gg NOT YET
@@ -27,7 +32,8 @@ unit c64;
 //- 8x8 and 16x16 font (hires/multicolor) - YET UNFINISHED
 //- sprites (hires/multicolor, also font sprited) - YET UNFINISHED
 //- "logo" text format (using fonts in text mode to represent graphics)
-//- Paint Magic (pc-ext: .pmg) 
+//- Paint Magic (pc-ext: .pmg)
+//- Advanced Art Studio 2.0 (by OCP) (pc-ext: .ocp;.art)  
 //------------------------------------------------------------------------------
 //History:
 //created: somewhere in 1994-1995
@@ -49,17 +55,17 @@ unit c64;
 //updated: 20171105 1550-1630
 //updated: 20171105 1830-2055
 //updated: 20171111 1220-1500
-//updated: 20171111 1605-1625 ...
+//updated: 20171111 1605-1745 ...
 
 {todo:
 # MAIN:
 .- fnt/fntb/logo - hires v multi - FNTload(multi) / FNTBshow(hires) / LOGOshow(hires)
-- fnt/fntb/mob - more/misc (eg get given one)
+- fnt/fntb/mob - more/misc (eg get given one, anim?)
 .- *FLI formats
 .- more exotic formats
-- MOBloadHires v MOBloadMulticolor -> one call
+.- Lazarus - compile+check on Linux
 # NEXT:
-- Lazarus friendly (laz demo too, compile+check on Linux)
+- cleanup: MOBloadHires v MOBloadMulticolor -> one call
 - separate load and bmp/canvas pack (rerender w/o load)
 # LATER:
 - also BDS demo?
@@ -110,11 +116,21 @@ unit c64;
 - hires/multi mode for font/logo/sprites - param exposed
 - added support for Paint Magic (pc-ext: .pmg)
 - misc
+# v1.38
+- Lazarus compatible + Lazarus demo
+- added support for Advanced Art Studio 2.0 (pc-ext: .ocp;.art)
+- misc
 }
 
 interface
 
+{$ifdef FPC}
+uses LCLIntf, LCLType, LMessages, SysUtils, Classes, Graphics, Dialogs;
+{$ELSE}
 uses Windows, SysUtils, Classes, Graphics, Dialogs;
+{$ENDIF}
+
+
 
 type
      MOBdata = record
@@ -166,6 +182,7 @@ TC64Pallete = (C64S_PAL, CCS64_PAL, FRODO_PAL, GODOT_PAL, PC64_PAL, VICE_PAL);
 
 TC64FileType = (C64_UNKNOWN,
                 C64_KOALA, C64_WIGMORE, C64_RUNPAINT, C64_ISM, C64_PAINTMAGIC,
+                C64_ADVARTST,
                 C64_HIRES, C64_HED, C64_DDL, C64_ISH,
                 C64_AMICA,
                 C64_LOGO, C64_FNT, C64_FNTB, C64_MOB, C64_MBF,
@@ -181,7 +198,7 @@ private
 
   function GenericLoader(FileName: string; callback: TC64Loader; ca: TCanvas; mode: TC64FileType): integer;
 
-  procedure KOALAshow(koala: MULTIdata; ca: TCanvas);
+  procedure MULTICOLORshow(koala: MULTIdata; ca: TCanvas);
   procedure HIRESshow(hires: HIRESdata; ca: TCanvas);
   procedure LOGOshow(logo: LOGOdata; ca: TCanvas);
   procedure FNTshow(x0, y0: integer; fnt: FNTdata; ca: TCanvas; cnt: byte);
@@ -196,6 +213,8 @@ private
   procedure RUNPAINTload(ca: TCanvas);
   procedure IMGSYSload(ca: TCanvas);
   procedure PAMAGload(ca: TCanvas);
+  procedure ADVARTSTload(ca: TCanvas);
+
   procedure HIRESload(ca: TCanvas);
   procedure HIRESloadHED(ca: TCanvas);
   procedure HIRESloadDDL(ca: TCanvas);
@@ -218,7 +237,7 @@ public
   procedure Set4Colors(color0, color1, color2, color3: byte);
   function ExtMapper(ext: string): TC64FileType;
 
-  function LoadKoalaToBitmap(FileName: string; ca: TCanvas; mode: TC64FileType): integer;
+  function LoadMulticolorToBitmap(FileName: string; ca: TCanvas; mode: TC64FileType): integer;
   function LoadHiresToBitmap(FileName: string; ca: TCanvas; mode: TC64FileType): integer;
   function LoadAmicaToBitmap(FileName: string; ca: TCanvas): integer;
   function LoadLogoToBitmap(FileName: string; ca: TCanvas): integer;
@@ -365,6 +384,9 @@ begin
   //Koala Painter 2 (by AUDIO LIGHT) (pc-ext: .koa;.kla;.gg)
   if (e = '.KOA') or (e = '.KLA') then result := C64_KOALA;
 
+  //Advanced Art Studio 2.0 (by OCP) (pc-ext: .ocp;.art)   
+  if (e = '.MPIC') then result := C64_ADVARTST; //note: we use .mpic ext, not .art or other
+
   //Wigmore Artist64 (by wigmore) (pc-ext: .a64)
   if (e = '.A64') then result := C64_WIGMORE;
 
@@ -417,16 +439,6 @@ begin
 
   if (e = '.IFLI') or (e = '.IFL') (*or (e = '.GUN')*) then result := C64_IFLI;
 
-(*
-Advanced Art Studio 2.0 (by OCP) (pc-ext: .ocp;.art) -- Frontpic.art / gfartist.art / MONALISA.ART / PRODIGY.ART / SIANO.ART
-load address: $2000 - $471F
-$2000 - $3F3F 	Bitmap
-$3F40 - $4327 	Screen RAM
-$4328 	Border
-$4329 	Background
-$4338 - $471F 	Color RAM
-*)
-
 (* lookup more-to-implement folder for:
 Hires-Interlace v1.0 (Feniks) (pc-ext: .hlf) -- LOGOFENIKS.HLF
 Drazlace (pc-ext: .drl) -- TESTPACK.Drl
@@ -469,7 +481,7 @@ end;
 
 //---
 
-procedure TC64.KOALAshow(koala: MULTIdata; ca: TCanvas);
+procedure TC64.MULTICOLORshow(koala: MULTIdata; ca: TCanvas);
 var x, y, bit, c0, c1, c2, c3, bt, bt1, vl, vl1, vl2: byte;
     c: TColor;
     ndx, ndx2: integer;
@@ -632,9 +644,9 @@ begin
       begin
         vl := (bt and pow[bit]) div pow[bit];
         if vl = 0 then
-          cl := GetC64Color(0)  //black bg
+          cl := GetC64Color(0)  //background (eg. black)
         else
-          cl := GetC64Color(1); //white fg
+          cl := GetC64Color(1); //foreground (eg. white)
         ca.Pixels[x0+x*8+7-bit, y0+y] := cl;
       end
     end;
@@ -668,7 +680,7 @@ begin
     end;
 end;
 
-//based on C code from C64Gfx by Pasi 'Albert' Ojala
+//FLI - based on C code from C64Gfx by Pasi 'Albert' Ojala
 
 procedure TC64.FLIshow(fli: FLIdata; ca: TCanvas; mode: TC64FileType);
 const bitmask: array[0..3] of byte = ($c0, $30, $0c, $03);
@@ -677,11 +689,11 @@ var x, y, ind, pos, bits, ysize, xsize: integer;
     a, b: byte;
 begin
   ysize := 200;
-  xsize := 160;
+//  xsize := 160;
   b := 0;
 
   if (mode = C64_BFLI) then ysize := 400;
-  if (mode = C64_AFLI) then xsize := 320;
+//  if (mode = C64_AFLI) then xsize := 320;
 
   for y := 0 to ysize-1 do
   begin
@@ -742,7 +754,7 @@ end;
 procedure TC64.IFLIshow(ifli: IFLIdata; ca: TCanvas);
 const bitmask: array[0..3] of byte = ($c0, $30, $0c, $03);
       bitshift: array[0..3] of byte = ($40, $10, $04, $01);
-var x, y, ind, pos, bits, memind, i: integer;
+var x, y, ind, pos, bits, memind: integer;
     a0, a1: byte;
     c0, c1: byte;
     buffer: array[0..3*321] of byte;    
@@ -805,7 +817,7 @@ begin
   for g := 0 to $8328-$7f40-1 do read(f, koala.ink1[g]);
   for g := 0 to $8710-$8328-1 do read(f, koala.ink2[g]);
   read(f, koala.backGr);
-  KOALAshow(koala, ca);
+  MULTICOLORshow(koala, ca);
 end;
 
 (*
@@ -829,7 +841,7 @@ begin
   for g := 0 to $6400-$63E7-1-1 do read(f, none); //?
   for g := 0 to 999 do read(f, koala.ink2[g]);
   read(f, koala.backGr); //todo: chk this one
-  KOALAshow(koala, ca);
+  MULTICOLORshow(koala, ca);
 end;
 
 (*
@@ -851,7 +863,7 @@ begin
   for g := 0 to 999 do read(f, koala.ink1[g]);
   for g := 0 to 999 do read(f, koala.ink2[g]);
   read(f, koala.backGr); 
-  KOALAshow(koala, ca);
+  MULTICOLORshow(koala, ca);
 end;
 
 (*
@@ -875,7 +887,7 @@ begin
   for g := 0 to 191-1 do read(f, none); //10218-2-1000-1000-24-8000-1 = 191
   read(f, koala.backGr);
   for g := 0 to 999 do read(f, koala.ink1[g]);
-  KOALAshow(koala, ca);
+  MULTICOLORshow(koala, ca);
 end;
 
 (*
@@ -889,22 +901,47 @@ $5F44 	Border
 $6000 - $63E7 	Screen RAM
 *)
 procedure TC64.PAMAGload(ca: TCanvas);
-var koala: MULTIdata;
+var data: MULTIdata;
     g: word;
     c, none: byte;
 begin
   if not assigned(ca) then exit;
   read(f, none, none);
   for g := 0 to $3FFF-$3F8E-1+(1) do read(f, none); //display routine
-  for g := 0 to 7999 do read(f, koala.bitmap[g]);
-  read(f, koala.backGr);
+  for g := 0 to 7999 do read(f, data.bitmap[g]);
+  read(f, data.backGr);
   read(f, none, none); //skip
   read(f, c); //Color RAM Byte
   read(f, none); //border - ignore
-  for g := 0 to 999 do koala.ink2[g] := c;
+  for g := 0 to 999 do data.ink2[g] := c;
   for g := 0 to $6000-$5F45-1 do read(f, none); //skip
-  for g := 0 to 999 do read(f, koala.ink1[g]);
-  KOALAshow(koala, ca);
+  for g := 0 to 999 do read(f, data.ink1[g]);
+  MULTICOLORshow(data, ca);
+end;
+
+(*
+Advanced Art Studio 2.0 (by OCP) (pc-ext: .ocp;.art) -- Frontpic.art / gfartist.art / MONALISA.ART / PRODIGY.ART / SIANO.ART
+load address: $2000 - $471F
+$2000 - $3F3F 	Bitmap
+$3F40 - $4327 	Screen RAM
+$4328 	Border
+$4329 	Background
+$4338 - $471F 	Color RAM
+*)
+procedure TC64.ADVARTSTload(ca: TCanvas);
+var data: MULTIdata;
+    g: word;
+    c, none: byte;
+begin
+  if not assigned(ca) then exit;
+  read(f, none, none);
+  for g := 0 to 7999 do read(f, data.bitmap[g]);
+  for g := 0 to 999 do read(f, data.ink1[g]);
+  read(f, none);
+  read(f, data.backGr);
+  for g := 0 to $4338-$432A-1 do read(f, none); //skip
+  for g := 0 to 999 do read(f, data.ink2[g]);
+  MULTICOLORshow(data, ca);
 end;
 
 procedure TC64.HIRESload(ca: TCanvas);
@@ -990,7 +1027,7 @@ begin
   for i := 0 to high(o_buff) do o_buff[i] := 0;
   AMICAunpack(i_buff, o_buff);
   AMICA2KOALA(o_buff, koala);
-  KOALAshow(koala, ca);
+  MULTICOLORshow(koala, ca);
 end;
 
 //------------------------------------------------------------------------------
@@ -1290,7 +1327,7 @@ begin
 		$c341             ???   (doesn't seem to be important..)
 *)
 
-//IFLI based on: C64 Horizontal 'Interlaced' FLI By Pasi 'Albert' Ojala © 1991-1998
+//IFLI based on: C64 Horizontal 'Interlaced' FLI By Pasi 'Albert' Ojala Â© 1991-1998
 
   if (temp[0] = $0) and (temp[1] = $3f) then //IFLI
   begin
@@ -1317,7 +1354,7 @@ end;
 
 //---
 
-function TC64.LoadKoalaToBitmap(FileName: string; ca: TCanvas; mode: TC64FileType): integer;
+function TC64.LoadMulticolorToBitmap(FileName: string; ca: TCanvas; mode: TC64FileType): integer;
 begin
   case mode of
     C64_KOALA:      result := GenericLoader(FileName, KOALAload, ca, mode);
@@ -1325,6 +1362,7 @@ begin
     C64_RUNPAINT:   result := GenericLoader(FileName, RUNPAINTload, ca, mode);
     C64_ISM:        result := GenericLoader(FileName, IMGSYSload, ca, mode);
     C64_PAINTMAGIC: result := GenericLoader(FileName, PAMAGload, ca, mode);
+    C64_ADVARTST:   result := GenericLoader(FileName, ADVARTSTload, ca, mode);
     else result := -1;
   end;
 end;
@@ -1383,12 +1421,13 @@ begin
   FLastError := 'Unknown format extension';
   mode := ExtMapper(ExtractFileExt(FileName));
   case mode of
-    C64_UNKNOWN:    result := -1;
+    C64_UNKNOWN:  result := -1;
     C64_KOALA,
     C64_WIGMORE,
     C64_RUNPAINT,
     C64_ISM,
-    C64_PAINTMAGIC: result := LoadKoalaToBitmap(FileName, ca, mode);
+    C64_PAINTMAGIC,
+    C64_ADVARTST: result := LoadMulticolorToBitmap(FileName, ca, mode);
     C64_HIRES,
     C64_HED,
     C64_DDL,

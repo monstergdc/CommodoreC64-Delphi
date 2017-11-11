@@ -1,5 +1,5 @@
 # CommodoreC64-Delphi
-Delphi class to manipulate Commodore C-64 graphics data
+Delphi/Lazarus class to manipulate Commodore C-64 graphics data
 
 Supported formats include:
 - Koala Painter 2 (by AUDIO LIGHT) (pc-ext: .koa;.kla;.gg) -- .gg NOT YET
@@ -17,3 +17,5 @@ Supported formats include:
 - 8x8 and 16x16 font (hires/multicolor) - YET UNFINISHED
 - sprites (hires/multicolor, also font sprited) - YET UNFINISHED
 - "logo" text format (using fonts in text mode to represent graphics)
+- Paint Magic (pc-ext: .pmg)
+- Advanced Art Studio 2.0 (by OCP) (pc-ext: .ocp;.art)  
