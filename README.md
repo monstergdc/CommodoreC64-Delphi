@@ -20,6 +20,7 @@ Supported formats include:
 - "logo" text format (using fonts in text mode to represent graphics)
 - Paint Magic (pc-ext: .pmg)
 - Advanced Art Studio 2.0 (by OCP) (pc-ext: .ocp;.art)  
+- CDU-Paint (pc-ext: .cdu)
 
 ![demo screenshot](/demo-d7_w32.png?raw=true "demo screenshot Delphi 7")
 ![demo screenshot](/demo-l_w32.png?raw=true "demo screenshot Lazarus/Win")

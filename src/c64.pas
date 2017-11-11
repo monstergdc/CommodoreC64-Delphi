@@ -34,7 +34,8 @@ unit c64;
 //- sprites (hires/multicolor, also font sprited) - YET UNFINISHED
 //- "logo" text format (using fonts in text mode to represent graphics)
 //- Paint Magic (pc-ext: .pmg)
-//- Advanced Art Studio 2.0 (by OCP) (pc-ext: .ocp;.art)  
+//- Advanced Art Studio 2.0 (by OCP) (pc-ext: .ocp;.art)
+//- CDU-Paint (pc-ext: .cdu)
 //------------------------------------------------------------------------------
 //History:
 //created: somewhere in 1994-1995
@@ -57,17 +58,16 @@ unit c64;
 //updated: 20171105 1830-2055
 //updated: 20171111 1220-1500
 //updated: 20171111 1605-1800
-//updated: 20171111 1935-2005
+//updated: 20171111 1935-2050
+//updated: 20171111 2130-2150
 
 {todo:
 # MAIN:
-.- fntb/logo - hires v multi - FNTBshow(hires) / LOGOshow(hires)
-- fnt/fntb/mob - more/misc (eg get given one)
-.- *FLI formats
-.- more exotic formats
-.- buffs cleanup to 0 - more
-- unpackers for .jj .gg and the like
+.- [!] logo - hires v multi - LOGOshow(hires)
+.- [!] more exotic formats / *FLI formats / rainbowpainter.rp
+- [!] unpackers for .jj .gg and the like
 # NEXT:
+- fnt/fntb/mob - get given one/range
 - cleanup: MOBloadHires v MOBloadMulticolor -> one call
 - separate load and bmp/canvas pack (rerender w/o load)
 - pack back to C64 formats and write (colormap, dither?)
@@ -124,9 +124,10 @@ unit c64;
 # v1.38
 - crossplatform - Lazarus compatible + Lazarus demo
 - added support for Advanced Art Studio 2.0 (pc-ext: .ocp;.art)
+- added support for CDU-Paint (pc-ext: .cdu)
 - Lazarus - compiled+checked on Linux (Debian 8.7.1)
-- fnt hires/multi - proper
-- MULTICOLORclear, HIRESclear, LOGOclear, FNTclear
+- fnt/fntb - hires/multi - proper
+- MULTICOLORclear, HIRESclear, LOGOclear, FNTclear, FNTBclear MOBclear FLIclear IFLIclear
 - misc
 }
 
@@ -190,7 +191,7 @@ TC64Pallete = (C64S_PAL, CCS64_PAL, FRODO_PAL, GODOT_PAL, PC64_PAL, VICE_PAL);
 
 TC64FileType = (C64_UNKNOWN,
                 C64_KOALA, C64_WIGMORE, C64_RUNPAINT, C64_ISM, C64_PAINTMAGIC,
-                C64_ADVARTST,
+                C64_ADVARTST, C64_CDU,
                 C64_HIRES, C64_HED, C64_DDL, C64_ISH,
                 C64_AMICA,
                 C64_LOGO, C64_FNT, C64_FNTB, C64_MOB, C64_MBF,
@@ -210,14 +211,14 @@ private
   procedure HIRESclear(var data: HIRESdata);
   procedure LOGOclear(var data: LOGOdata);
   procedure FNTclear(var data: FNTdata);
-  //procedure FNTBclear(var data: FNTBdata);
-  //procedure MOBclear(var data: MOBdata);
-  //procedure FLIclear(var data: FLIdata);
-  //procedure IFLIclear(var data: IFLIdata);
+  procedure FNTBclear(var data: FNTBdata);
+  procedure MOBclear(var data: MOBdata);
+  procedure FLIclear(var data: FLIdata);
+  procedure IFLIclear(var data: IFLIdata);
 
   procedure MULTICOLORshow(data: MULTIdata; ca: TCanvas);
-  procedure HIRESshow(hires: HIRESdata; ca: TCanvas);
-  procedure LOGOshow(logo: LOGOdata; ca: TCanvas);
+  procedure HIRESshow(data: HIRESdata; ca: TCanvas);
+  procedure LOGOshow(data: LOGOdata; ca: TCanvas);
   procedure FNTshow(x0, y0: integer; fnt: FNTdata; ca: TCanvas; cnt: byte);
   procedure FNTBshow(x0, y0: integer; fntb: FNTBdata; ca: TCanvas; cnt: byte);
   procedure hMOBshow(x0, y0: integer; mob: MOBdata; ca: TCanvas; cnt: byte);
@@ -231,6 +232,7 @@ private
   procedure IMGSYSload(ca: TCanvas);
   procedure PAMAGload(ca: TCanvas);
   procedure ADVARTSTload(ca: TCanvas);
+  procedure CDUload(ca: TCanvas);
 
   procedure HIRESload(ca: TCanvas);
   procedure HIRESloadHED(ca: TCanvas);
@@ -401,7 +403,7 @@ begin
   //Koala Painter 2 (by AUDIO LIGHT) (pc-ext: .koa;.kla;.gg)
   if (e = '.KOA') or (e = '.KLA') then result := C64_KOALA;
 
-  //Advanced Art Studio 2.0 (by OCP) (pc-ext: .ocp;.art)   
+  //Advanced Art Studio 2.0 (by OCP) (pc-ext: .ocp;.art)
   if (e = '.MPIC') then result := C64_ADVARTST; //note: we use .mpic ext, not .art or other
 
   //Wigmore Artist64 (by wigmore) (pc-ext: .a64)
@@ -413,8 +415,11 @@ begin
   //Image System (Multicolor) (pc-ext: .ism;.ims) -- Alid.ism
   if (e = '.ISM') or (e = '.IMS') then result := C64_ISM;
 
-  //Paint Magic (pc-ext: .pmg) 
+  //Paint Magic (pc-ext: .pmg)
   if (e = '.PMG') then result := C64_PAINTMAGIC;
+
+  //CDU-Paint (pc-ext: .cdu)
+  if (e = '.CDU') then result := C64_CDU;
 
   //Art Studio 1.0-1.1 (by OCP) (pc-ext: .aas;.art;.hpi)
   if (e = '.PIC') or (e = '.ART') or (e = '.OCP') or (e = '.AAS') or (e = '.HPI') then
@@ -525,6 +530,39 @@ begin
   for g := 1 to 255 do for h := 0 to 7 do data.fnt[g, h] := 0;
 end;
 
+procedure TC64.FNTBclear(var data: FNTBdata);
+var g, h: integer;
+begin
+  data.cnt := 0;
+  for g := 1 to 255 do for h := 0 to 31 do data.fntb[g, h] := 0;
+end;
+
+procedure TC64.MOBclear(var data: MOBdata);
+var g, h: integer;
+begin
+  data.cnt := 0;
+  for g := 1 to 100 do for h := 0 to 63 do data.mob[g, h] := 0;
+end;
+
+procedure TC64.FLIclear(var data: FLIdata);
+var i, j: integer;
+begin
+  for i := 0 to 16383 do data.gfxmem[i] := 0;
+  for j := 0 to 7 do for i := 0 to 2047 do data.chrmem[j][i] := 0;
+  for i := 0 to 1023 do data.colmem[i] := 0;
+  for i := 0 to 255 do data.bgcol[i] := 0;
+end;
+
+procedure TC64.IFLIclear(var data: IFLIdata);
+var i: integer;
+begin
+  for i := 0 to 8191 do data.gfxmem1[i] := 0;
+  for i := 0 to 8191 do data.gfxmem2[i] := 0;
+  for i := 0 to 8191 do data.chrmem1[i] := 0;
+  for i := 0 to 8191 do data.chrmem2[i] := 0;
+  for i := 0 to 1023 do data.colmem[i] := 0;
+end;
+
 //---
 
 procedure TC64.MULTICOLORshow(data: MULTIdata; ca: TCanvas);
@@ -564,7 +602,7 @@ begin
     end;
 end;
 
-procedure TC64.HIRESshow(hires: HIRESdata; ca: TCanvas);
+procedure TC64.HIRESshow(data: HIRESdata; ca: TCanvas);
 var x, y, bit, cc, c1, c2, bt, bt1: byte;
     c: TColor;
 begin
@@ -573,12 +611,12 @@ begin
   for x := 0 to 39 do
     for y := 0 to 24 do
     begin
-      cc := hires.ink[x+y*40];
+      cc := data.ink[x+y*40];
       c1 := (cc and $0f);
       c2 := (cc and $f0) shr 4;
       for bt := 0 to 7 do
       begin
-        bt1 := hires.bitmap[x*8+y*320+bt];
+        bt1 := data.bitmap[x*8+y*320+bt];
         for bit := 7 downto 0 do
         begin
           if (bt1 and pow[bit]) = pow[bit] then
@@ -591,7 +629,7 @@ begin
     end;
 end;
 
-procedure TC64.LOGOshow(logo: LOGOdata; ca: TCanvas);
+procedure TC64.LOGOshow(data: LOGOdata; ca: TCanvas);
 var x, y, bit, bt1, bt2, vl, vl1, vl2, bt: byte;
     c: TColor;
 begin
@@ -600,10 +638,10 @@ begin
   for x := 0 to 39 do
     for y := 0 to 24 do
     begin
-      bt1 := logo.logo[x+y*40];
+      bt1 := data.logo[x+y*40];
       for bt := 0 to 7 do
       begin
-        bt2 := logo.bitmap[bt1*8+bt];
+        bt2 := data.bitmap[bt1*8+bt];
         for bit := 3 downto 0 do
         begin
           vl1 := ((bt2 and pow[bit*2]) div pow[bit*2]);
@@ -676,28 +714,48 @@ var x, y, bit, bt, vl1, vl2, vl, c: byte;
 begin
   if not assigned(ca) then exit;
 
-  for y := 0 to 15 do
-    for x := 0 to 1 do
-    begin
-      if y >= 8 then c := 16+y-8 else c := y;
-      bt := fntb.fntb[cnt, x*8+c];
-      for bit := 3 downto 0 do
+  if FAsHires then
+  begin
+    for y := 0 to 15 do
+      for x := 0 to 1 do
       begin
-        vl1 := (bt and pow[bit*2]) div pow[bit*2];
-        vl2 := (bt and pow[bit*2+1]) div pow[bit*2+1];
-        vl := vl1+2*vl2;
-        //todo: hires too
-        case vl of
-          0: cl := GetC64Color(FColors4[0]);
-          1: cl := GetC64Color(FColors4[1]);
-          2: cl := GetC64Color(FColors4[2]);
-          3: cl := GetC64Color(FColors4[3]);
-          else cl := GetC64Color(0);
+        if y >= 8 then c := 16+y-8 else c := y;
+        bt := fntb.fntb[cnt, x*8+c];
+        for bit := 0 to 7 do
+        begin
+          vl := bt and pow[bit];
+          if vl = 0 then
+            cl := GetC64Color(FColors4[0]) //bg
+          else
+            cl := GetC64Color(FColors4[1]); //fg
+          ca.Pixels[x0+x*8+8-bit, y0+y] := cl;
         end;
-        ca.Pixels[x0+x*8+7-2*bit, y0+y] := cl;
-        ca.Pixels[x0+x*8+8-2*bit, y0+y] := cl;
       end;
-    end;
+  end
+  else  //multicolor
+  begin
+    for y := 0 to 15 do
+      for x := 0 to 1 do
+      begin
+        if y >= 8 then c := 16+y-8 else c := y;
+        bt := fntb.fntb[cnt, x*8+c];
+        for bit := 3 downto 0 do
+        begin
+          vl1 := (bt and pow[bit*2]) div pow[bit*2];
+          vl2 := (bt and pow[bit*2+1]) div pow[bit*2+1];
+          vl := vl1+2*vl2;
+          case vl of
+            0: cl := GetC64Color(FColors4[0]);
+            1: cl := GetC64Color(FColors4[1]);
+            2: cl := GetC64Color(FColors4[2]);
+            3: cl := GetC64Color(FColors4[3]);
+            else cl := GetC64Color(0);
+          end;
+          ca.Pixels[x0+x*8+7-2*bit, y0+y] := cl;
+          ca.Pixels[x0+x*8+8-2*bit, y0+y] := cl;
+        end;
+      end;
+  end;
 end;
 
 procedure TC64.hMOBshow(x0, y0: integer; mob: MOBdata; ca: TCanvas; cnt: byte);
@@ -1020,6 +1078,31 @@ begin
   MULTICOLORshow(data, ca);
 end;
 
+(*
+CDU-Paint (pc-ext: .cdu)
+load address: $7EEF - $a711
+$7FEF - $7FFF 	Display routine
+$8000 - $9F3F 	Bitmap
+$9F40 - $A328 	Screen RAM (???)
+$A328 - $A710 	Color RAM (???)
+$A710 	Background (???)
+*)
+procedure TC64.CDUload(ca: TCanvas);
+var data: MULTIdata;
+    g: word;
+    none: byte;
+begin
+  if not assigned(ca) then exit;
+  MULTICOLORclear(data);  
+  read(f, none, none);
+  for g := 0 to 273-1 do read(f, none); //skip display routine
+  for g := 0 to 7999 do read(f, data.bitmap[g]);
+  for g := 0 to 999 do read(f, data.ink1[g]);
+  for g := 0 to 999 do read(f, data.ink2[g]);
+  read(f, data.backGr);
+  MULTICOLORshow(data, ca);
+end;
+
 procedure TC64.HIRESload(ca: TCanvas);
 var data: HIRESdata;
     g: word;
@@ -1190,6 +1273,7 @@ var data: FNTBdata;
 begin
   if not assigned(ca) then exit;
 
+  FNTBclear(data);
   read(f, none, none);
   for g := 1 to 64 do for h := 0 to 7 do read(f, data.fntb[g, h]);
   for g := 1 to 64 do for h := 0 to 7 do read(f, data.fntb[g, h+8]);
@@ -1211,6 +1295,8 @@ var mob: MOBdata;
     g: byte;
 begin
   if not assigned(ca) then exit;
+
+  MOBclear(mob);
 
   mob.cnt := 1;
   read(f, g, g);
@@ -1237,6 +1323,8 @@ var mob: MOBdata;
     g: byte;
 begin
   if not assigned(ca) then exit;
+
+  MOBclear(mob);
 
   mob.cnt := 1;
   read(f, g, g);
@@ -1265,6 +1353,9 @@ var fli: FLIdata;
     i, j: integer;
 begin
   if not assigned(ca) then exit;
+
+  FLIclear(fli);
+  IFLIclear(ifli);
 
   read(f, temp[0], temp[1]);
 
@@ -1437,6 +1528,7 @@ begin
     C64_ISM:        result := GenericLoader(FileName, IMGSYSload, ca, mode);
     C64_PAINTMAGIC: result := GenericLoader(FileName, PAMAGload, ca, mode);
     C64_ADVARTST:   result := GenericLoader(FileName, ADVARTSTload, ca, mode);
+    C64_CDU:        result := GenericLoader(FileName, CDUload, ca, mode);
     else result := -1;
   end;
 end;
@@ -1501,7 +1593,8 @@ begin
     C64_RUNPAINT,
     C64_ISM,
     C64_PAINTMAGIC,
-    C64_ADVARTST: result := LoadMulticolorToBitmap(FileName, ca, mode);
+    C64_ADVARTST,
+    C64_CDU:      result := LoadMulticolorToBitmap(FileName, ca, mode);
     C64_HIRES,
     C64_HED,
     C64_DDL,
