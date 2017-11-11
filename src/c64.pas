@@ -47,7 +47,7 @@ unit c64;
 //updated: 20171105 1455-1520
 //updated: 20171105 1550-1630
 //updated: 20171105 1830-2055
-//updated: 20171111 1220-1310
+//updated: 20171111 1220-1355
 
 {todo:
 # MAIN:
@@ -60,7 +60,6 @@ unit c64;
 - Lazarus friendly (laz demo too, compile+check on Linux)
 - also BDS demo
 - separate load and bmp/canvas pack
-- add more palletes
 # LATER:
 - add misc limit checks
 - add deeper byte format detection
@@ -101,7 +100,9 @@ unit c64;
 - added support for Image System (Multicolor) (.ism;.ims)
 - misc fixes/updates
 # v1.37
-- fixed BFLI display (h=400) 
+- fixed BFLI display (h=400)
+- added more palletes: C64S_PAL FRODO_PAL GODOT_PAL PC64_PAL VICE_PAL
+- old VICE_PAL was actually CCS64_PAL
 }
 
 interface
@@ -154,7 +155,7 @@ TC64Loader = procedure(ca: TCanvas) of object;
 
 TAmicaBuff = array[0..32767] of byte;
 
-TC64Pallete = (VICE_PAL);
+TC64Pallete = (C64S_PAL, CCS64_PAL, FRODO_PAL, GODOT_PAL, PC64_PAL, VICE_PAL);  
 
 TC64FileType = (C64_UNKNOWN, C64_KOALA, C64_WIGMORE, C64_RUNPAINT, C64_ISM,
                 C64_HIRES, C64_HED, C64_DDL, C64_ISH,
@@ -223,13 +224,39 @@ end;
 implementation
 
 const
-//0..15 = black,white,red,cyan,magenta,green,blue,yellow
-//orange,brown,pink,dk.gray,gray,lt.green,lt.blue,lt.gray
+//0..15 = black,white,red,cyan,magenta(purple),green,blue,yellow
+//orange,brown(lt.red),pink,dk.gray,gray,lt.green,lt.blue,lt.gray
+
+//VICE pallete c64s.vpl
+  c64s_r: array[0..15] of byte = ($00,$fc,$a8,$54,$a8,$00,$00,$fc, $a8,$80,$fc,$54,$80,$54,$54,$a8);
+  c64s_g: array[0..15] of byte = ($00,$fc,$00,$fc,$00,$a8,$00,$fc, $54,$2c,$54,$54,$80,$fc,$54,$a8);
+  c64s_b: array[0..15] of byte = ($00,$fc,$00,$fc,$a8,$00,$a8,$00, $00,$00,$54,$54,$80,$54,$fc,$a8);
 
 //VICE pallete ccs64.vpl
-  vice_r: array[0..15] of byte = ($00,$ff,$e0,$60,$e0,$40,$40,$ff, $e0,$9c,$ff,$54,$88,$a0,$a0,$c0);
-  vice_g: array[0..15] of byte = ($00,$ff,$40,$ff,$60,$e0,$40,$ff, $a0,$74,$a0,$54,$88,$ff,$a0,$c0);
-  vice_b: array[0..15] of byte = ($00,$ff,$40,$ff,$e0,$40,$e0,$40, $40,$48,$a0,$54,$88,$a0,$ff,$c0);
+  ccs64_r: array[0..15] of byte = ($00,$ff,$e0,$60,$e0,$40,$40,$ff, $e0,$9c,$ff,$54,$88,$a0,$a0,$c0);
+  ccs64_g: array[0..15] of byte = ($00,$ff,$40,$ff,$60,$e0,$40,$ff, $a0,$74,$a0,$54,$88,$ff,$a0,$c0);
+  ccs64_b: array[0..15] of byte = ($00,$ff,$40,$ff,$e0,$40,$e0,$40, $40,$48,$a0,$54,$88,$a0,$ff,$c0);
+
+//VICE pallete frodo.vpl
+  frodo_r: array[0..15] of byte = ($00,$ff,$cc,$00,$ff,$00,$00,$ff, $ff,$88,$ff,$44,$88,$88,$88,$cc);
+  frodo_g: array[0..15] of byte = ($00,$ff,$00,$ff,$00,$cc,$00,$ff, $88,$44,$88,$44,$88,$ff,$88,$cc);
+  frodo_b: array[0..15] of byte = ($00,$ff,$00,$cc,$ff,$00,$cc,$00, $00,$00,$88,$44,$88,$88,$ff,$cc);
+
+//VICE pallete godot.vpl
+  godot_r: array[0..15] of byte = ($00,$ff,$88,$aa,$cc,$00,$00,$ee, $dd,$66,$fe,$33,$77,$aa,$00,$bb);
+  godot_g: array[0..15] of byte = ($00,$ff,$00,$ff,$44,$cc,$00,$ee, $88,$44,$77,$33,$77,$ff,$88,$bb);
+  godot_b: array[0..15] of byte = ($00,$ff,$00,$ee,$cc,$55,$aa,$77, $55,$00,$77,$33,$77,$66,$ff,$bb);
+
+//VICE pallete pc64.vpl                                                                     
+  pc64_r: array[0..15] of byte = ($21,$ff,$b5,$73,$b5,$21,$21,$ff, $b5,$94,$ff,$73,$94,$73,$73,$b5);
+  pc64_g: array[0..15] of byte = ($21,$ff,$21,$ff,$21,$b5,$21,$ff, $73,$42,$73,$73,$94,$ff,$73,$b5);
+  pc64_b: array[0..15] of byte = ($21,$ff,$21,$ff,$b5,$21,$b5,$21, $21,$21,$73,$73,$94,$73,$ff,$b5);
+
+//VICE pallete vice.vpl                                                                     
+  vice_r: array[0..15] of byte = ($00,$ff,$68,$70,$6f,$58,$35,$b8, $6f,$43,$9a,$44,$6c,$9a,$6c,$95);
+  vice_g: array[0..15] of byte = ($00,$ff,$37,$a4,$3d,$8d,$28,$c7, $4f,$39,$67,$44,$6c,$d2,$5e,$95);
+  vice_b: array[0..15] of byte = ($00,$ff,$2b,$b2,$86,$43,$79,$6f, $25,$00,$59,$44,$6c,$84,$b5,$95);
+
 
   pow: array[0..7] of byte = (1, 2, 4, 8, 16, 32, 64, 128);
 
@@ -238,7 +265,7 @@ const
 constructor TC64.Create;
 begin
   inherited;
-  FPalette := VICE_PAL;
+  FPalette := CCS64_PAL;
   Set4Colors(0, 1, 15, 11);
 end;
 
@@ -248,7 +275,12 @@ begin
     result := 0
   else
     case FPalette of
-      VICE_PAL: result := RGB(vice_r[index], vice_g[index], vice_b[index]);
+      C64S_PAL:  result := RGB(c64s_r[index], c64s_g[index], c64s_b[index]);
+      CCS64_PAL: result := RGB(ccs64_r[index], ccs64_g[index], ccs64_b[index]);
+      FRODO_PAL: result := RGB(frodo_r[index], frodo_g[index], frodo_b[index]);
+      GODOT_PAL: result := RGB(godot_r[index], godot_g[index], godot_b[index]);
+      PC64_PAL:  result := RGB(pc64_r[index], pc64_g[index], pc64_b[index]);
+      VICE_PAL:  result := RGB(vice_r[index], vice_g[index], vice_b[index]);
       else result := 0;
     end;
 end;
@@ -672,17 +704,17 @@ begin
         3: c1 := ifli.colmem[ind] and $0f;
       end;
 
-	    buffer[6*x+0] := (buffer[6*x+0] + vice_r[c0]) div 2;
-	    buffer[6*x+1] := (buffer[6*x+1] + vice_g[c0]) div 2;
-	    buffer[6*x+2] := (buffer[6*x+2] + vice_b[c0]) div 2;
+	    buffer[6*x+0] := (buffer[6*x+0] + ccs64_r[c0]) div 2;
+	    buffer[6*x+1] := (buffer[6*x+1] + ccs64_g[c0]) div 2;
+	    buffer[6*x+2] := (buffer[6*x+2] + ccs64_b[c0]) div 2;
 
-	    buffer[6*x+3] := (vice_r[c1] + vice_r[c0]) div 2;
-	    buffer[6*x+4] := (vice_g[c1] + vice_g[c0]) div 2;
-	    buffer[6*x+5] := (vice_b[c1] + vice_b[c0]) div 2;
+	    buffer[6*x+3] := (ccs64_r[c1] + ccs64_r[c0]) div 2;
+	    buffer[6*x+4] := (ccs64_g[c1] + ccs64_g[c0]) div 2;
+	    buffer[6*x+5] := (ccs64_b[c1] + ccs64_b[c0]) div 2;
 
-	    buffer[6*x+6] := vice_r[c1];
-	    buffer[6*x+7] := vice_g[c1];
-	    buffer[6*x+8] := vice_b[c1];
+	    buffer[6*x+6] := ccs64_r[c1];
+	    buffer[6*x+7] := ccs64_g[c1];
+	    buffer[6*x+8] := ccs64_b[c1];
     end;
     for x := 0 to 320-1 do
       ca.Pixels[x, y] := RGB(buffer[x*3+0], buffer[x*3+1], buffer[x*3+2]);

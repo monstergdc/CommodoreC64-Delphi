@@ -200,6 +200,23 @@ object Form1: TForm1
       OnClick = BitBtnDDLClick
     end
   end
+  object RadioGroup1: TRadioGroup
+    Left = 352
+    Top = 232
+    Width = 97
+    Height = 129
+    Caption = 'Palette'
+    ItemIndex = 0
+    Items.Strings = (
+      'C64S'
+      'CCS64S'
+      'FRODO'
+      'GODOT'
+      'PC64'
+      'VICE')
+    TabOrder = 4
+    OnClick = RadioGroup1Click
+  end
   object SaveDialog1: TSaveDialog
     Options = [ofOverwritePrompt, ofHideReadOnly, ofPathMustExist, ofEnableSizing]
     Left = 24

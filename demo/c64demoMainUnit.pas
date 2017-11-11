@@ -37,6 +37,7 @@ type
     BitBtn13: TBitBtn;
     BitBtnHIEDDI: TBitBtn;
     BitBtnDDL: TBitBtn;
+    RadioGroup1: TRadioGroup;
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
     procedure BitBtnKOALAClick(Sender: TObject);
@@ -57,6 +58,7 @@ type
     procedure BitBtn13Click(Sender: TObject);
     procedure BitBtnHIEDDIClick(Sender: TObject);
     procedure BitBtnDDLClick(Sender: TObject);
+    procedure RadioGroup1Click(Sender: TObject);
   private
     c64: TC64;
     procedure ClearImage(bfli: boolean = false);
@@ -256,6 +258,18 @@ procedure TForm1.BitBtnDDLClick(Sender: TObject);
 begin
   ClearImage;
   c64.LoadHiresToBitmap(folder+'midear.dd', Image1.Picture.Bitmap.Canvas, C64_DDL);
+end;
+
+procedure TForm1.RadioGroup1Click(Sender: TObject);
+begin
+  case RadioGroup1.ItemIndex of
+    0: c64.Palette := C64S_PAL;
+    1: c64.Palette := CCS64_PAL;
+    2: c64.Palette := FRODO_PAL;
+    3: c64.Palette := GODOT_PAL;
+    4: c64.Palette := PC64_PAL;
+    5: c64.Palette := VICE_PAL;
+  end;
 end;
 
 end.
