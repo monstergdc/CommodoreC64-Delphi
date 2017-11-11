@@ -1,4 +1,4 @@
-﻿unit c64;
+unit c64;
 
 {$ifdef FPC}
 {$MODE Delphi}
@@ -57,22 +57,27 @@
 //updated: 20171105 1830-2055
 //updated: 20171111 1220-1500
 //updated: 20171111 1605-1800
+//updated: 20171111 1935-2005
 
 {todo:
 # MAIN:
-.- fnt/fntb/logo - hires v multi - FNTload(multi) / FNTBshow(hires) / LOGOshow(hires)
-- fnt/fntb/mob - more/misc (eg get given one, anim?)
+.- fntb/logo - hires v multi - FNTBshow(hires) / LOGOshow(hires)
+- fnt/fntb/mob - more/misc (eg get given one)
 .- *FLI formats
 .- more exotic formats
+.- buffs cleanup to 0 - more
+- unpackers for .jj .gg and the like
 # NEXT:
 - cleanup: MOBloadHires v MOBloadMulticolor -> one call
 - separate load and bmp/canvas pack (rerender w/o load)
+- pack back to C64 formats and write (colormap, dither?)
+- recode one c64 fmt to another
+- cleanup - no FLI debug
 # LATER:
-- also BDS demo?
+- mob - anim?
 - add misc limit checks
 - add deeper byte format detection
 - also open source c64pas app
-- pack back to C64 formats and write (colormap, dither?)
 - ZX analogue (6144/768/6912)?
 - C code version (so more portable) ?
 }
@@ -120,6 +125,8 @@
 - crossplatform - Lazarus compatible + Lazarus demo
 - added support for Advanced Art Studio 2.0 (pc-ext: .ocp;.art)
 - Lazarus - compiled+checked on Linux (Debian 8.7.1)
+- fnt hires/multi - proper
+- MULTICOLORclear, HIRESclear, LOGOclear, FNTclear
 - misc
 }
 
@@ -147,7 +154,7 @@ type
                  fnt: array[1..255, 0..7] of byte;
                end;
      LOGOdata = record
-                  logo: array[0..$2000-$1800-1] of byte;
+                  logo: array[0..$2000-$1800-1] of byte;  //8192-6144 = 2048
                   bitmap: array[0..$2800-$2000-1] of byte;
                 end;
      MULTIdata = record
@@ -199,7 +206,16 @@ private
 
   function GenericLoader(FileName: string; callback: TC64Loader; ca: TCanvas; mode: TC64FileType): integer;
 
-  procedure MULTICOLORshow(koala: MULTIdata; ca: TCanvas);
+  procedure MULTICOLORclear(var data: MULTIdata);
+  procedure HIRESclear(var data: HIRESdata);
+  procedure LOGOclear(var data: LOGOdata);
+  procedure FNTclear(var data: FNTdata);
+  //procedure FNTBclear(var data: FNTBdata);
+  //procedure MOBclear(var data: MOBdata);
+  //procedure FLIclear(var data: FLIdata);
+  //procedure IFLIclear(var data: IFLIdata);
+
+  procedure MULTICOLORshow(data: MULTIdata; ca: TCanvas);
   procedure HIRESshow(hires: HIRESdata; ca: TCanvas);
   procedure LOGOshow(logo: LOGOdata; ca: TCanvas);
   procedure FNTshow(x0, y0: integer; fnt: FNTdata; ca: TCanvas; cnt: byte);
@@ -480,27 +496,56 @@ begin
   end;
 end;
 
+procedure TC64.MULTICOLORclear(var data: MULTIdata);
+var i: integer;
+begin
+  for i := 0 to 7999 do data.bitmap[i] := 0;
+  for i := 0 to 999 do data.ink1[i] := 0;
+  for i := 0 to 999 do data.ink2[i] := 0;
+  data.backGr := 0;
+end;
+
+procedure TC64.HIRESclear(var data: HIRESdata);
+var i: integer;
+begin
+  for i := 0 to 7999 do data.bitmap[i] := 0;
+  for i := 0 to 999 do data.ink[i] := 0;
+end;
+
+procedure TC64.LOGOclear(var data: LOGOdata);
+var i: integer;
+begin
+  for i := 0 to 2047 do data.logo[i] := 0;
+  for i := 0 to 2047 do data.bitmap[i] := 0;
+end;
+
+procedure TC64.FNTclear(var data: FNTdata);
+var g, h: integer;
+begin
+  for g := 1 to 255 do for h := 0 to 7 do data.fnt[g, h] := 0;
+end;
+
 //---
 
-procedure TC64.MULTICOLORshow(koala: MULTIdata; ca: TCanvas);
+procedure TC64.MULTICOLORshow(data: MULTIdata; ca: TCanvas);
 var x, y, bit, c0, c1, c2, c3, bt, bt1, vl, vl1, vl2: byte;
     c: TColor;
     ndx, ndx2: integer;
 begin
   if not assigned(ca) then exit;
 
-  c0 := koala.backGr and $0f;
+  c0 := data.backGr and $0f;
   for x := 0 to 39 do
     for y := 0 to 24 do
     begin
       ndx := x+y*40;
       ndx2 := x*8+y*320;
-      c1 := (koala.ink1[ndx] and $0f);        //&5c00
-      c2 := (koala.ink1[ndx] and $f0) shr 4;
-      c3 := (koala.ink2[ndx] and $0f);        //&d800
+      c1 := (data.ink1[ndx] and $0f);        //&5c00
+      c2 := (data.ink1[ndx] and $f0) shr 4;
+      c3 := (data.ink2[ndx] and $0f);        //&d800
       for bt := 0 to 7 do
       begin
-        bt1 := koala.bitmap[ndx2+bt];
+        bt1 := data.bitmap[ndx2+bt];
         for bit := 3 downto 0 do
         begin
           vl1 := ((bt1 and pow[bit*2]) div pow[bit*2]);
@@ -580,25 +625,49 @@ begin
 end;
 
 procedure TC64.FNTshow(x0, y0: integer; fnt: FNTdata; ca: TCanvas; cnt: byte);
-var y, bit, bt, vl: byte;
+var y, bit, bt, vl, vl1, vl2: byte;
     c: TColor;
 begin
   if not assigned(ca) then exit;
 
-  for y := 0 to 7 do
+  if FAsHires then
   begin
-    bt := fnt.fnt[cnt, y];
-    for bit := 0 to 7 do
+    for y := 0 to 7 do
     begin
-      vl := bt and pow[bit];
-      //todo: multicolor too
-      if vl = 0 then
-        c := GetC64Color(FColors4[0]) //bg
-      else
-        c := GetC64Color(FColors4[1]); //fg
-      ca.pixels[x0+8-bit, y0+y] := c;
+      bt := fnt.fnt[cnt, y];
+      for bit := 0 to 7 do
+      begin
+        vl := bt and pow[bit];
+        if vl = 0 then
+          c := GetC64Color(FColors4[0]) //bg
+        else
+          c := GetC64Color(FColors4[1]); //fg
+        ca.pixels[x0+8-bit, y0+y] := c;
+      end;
     end;
-  end;
+  end
+  else  //multicolor 
+  begin
+    for y := 0 to 7 do
+    begin
+      bt := fnt.fnt[cnt, y];
+      for bit := 0 to 3 do
+      begin
+        vl1 := (bt and pow[bit*2]) div pow[bit*2];
+        vl2 := (bt and pow[bit*2+1]) div pow[bit*2+1];
+        vl := vl1+2*vl2;
+        case vl of
+          0: c := GetC64Color(FColors4[0]);
+          1: c := GetC64Color(FColors4[1]);
+          2: c := GetC64Color(FColors4[2]);
+          3: c := GetC64Color(FColors4[3]);
+          else c := GetC64Color(0);
+        end;
+        ca.Pixels[x0+8-2*bit, y0+y] := c;
+        ca.Pixels[x0+8+1-2*bit, y0+y] := c;
+      end;
+    end;
+  end
 end;
 
 procedure TC64.FNTBshow(x0, y0: integer; fntb: FNTBdata; ca: TCanvas; cnt: byte);
@@ -686,7 +755,7 @@ end;
 procedure TC64.FLIshow(fli: FLIdata; ca: TCanvas; mode: TC64FileType);
 const bitmask: array[0..3] of byte = ($c0, $30, $0c, $03);
       bitshift: array[0..3] of byte = ($40, $10, $04, $01);
-var x, y, ind, pos, bits, ysize, xsize: integer;
+var x, y, ind, pos, bits, ysize(*, xsize*): integer;
     a, b: byte;
 begin
   ysize := 200;
@@ -808,17 +877,18 @@ end;
 //---
 
 procedure TC64.KOALAload(ca: TCanvas);
-var koala: MULTIdata;
+var data: MULTIdata;
     g: word;
     none: byte;
 begin
   if not assigned(ca) then exit;
+  MULTICOLORclear(data);
   read(f, none, none);
-  for g := 0 to $7f40-$6000-1 do read(f, koala.bitmap[g]);
-  for g := 0 to $8328-$7f40-1 do read(f, koala.ink1[g]);
-  for g := 0 to $8710-$8328-1 do read(f, koala.ink2[g]);
-  read(f, koala.backGr);
-  MULTICOLORshow(koala, ca);
+  for g := 0 to $7f40-$6000-1 do read(f, data.bitmap[g]);
+  for g := 0 to $8328-$7f40-1 do read(f, data.ink1[g]);
+  for g := 0 to $8710-$8328-1 do read(f, data.ink2[g]);
+  read(f, data.backGr);
+  MULTICOLORshow(data, ca);
 end;
 
 (*
@@ -830,19 +900,20 @@ $6400 - $67E7 	Color RAM
 $67FF 	Background
 *)
 procedure TC64.WIGMOREload(ca: TCanvas);
-var koala: MULTIdata;
+var data: MULTIdata;
     g: word;
     none: byte;
 begin
   if not assigned(ca) then exit;
+  MULTICOLORclear(data);  
   read(f, none, none);
-  for g := 0 to 7999 do read(f, koala.bitmap[g]);
+  for g := 0 to 7999 do read(f, data.bitmap[g]);
   for g := 0 to $6000-$5F3F-1-1 do read(f, none); //?
-  for g := 0 to 999 do read(f, koala.ink1[g]);
+  for g := 0 to 999 do read(f, data.ink1[g]);
   for g := 0 to $6400-$63E7-1-1 do read(f, none); //?
-  for g := 0 to 999 do read(f, koala.ink2[g]);
-  read(f, koala.backGr); //todo: chk this one
-  MULTICOLORshow(koala, ca);
+  for g := 0 to 999 do read(f, data.ink2[g]);
+  read(f, data.backGr); //todo: chk this one
+  MULTICOLORshow(data, ca);
 end;
 
 (*
@@ -854,17 +925,18 @@ $8328 - $870F 	Color RAM
 $8710 	Background
 *)
 procedure TC64.RUNPAINTload(ca: TCanvas);
-var koala: MULTIdata;
+var data: MULTIdata;
     g: word;
     none: byte;
 begin
   if not assigned(ca) then exit;
+  MULTICOLORclear(data);  
   read(f, none, none);
-  for g := 0 to 7999 do read(f, koala.bitmap[g]);
-  for g := 0 to 999 do read(f, koala.ink1[g]);
-  for g := 0 to 999 do read(f, koala.ink2[g]);
-  read(f, koala.backGr); 
-  MULTICOLORshow(koala, ca);
+  for g := 0 to 7999 do read(f, data.bitmap[g]);
+  for g := 0 to 999 do read(f, data.ink1[g]);
+  for g := 0 to 999 do read(f, data.ink2[g]);
+  read(f, data.backGr);
+  MULTICOLORshow(data, ca);
 end;
 
 (*
@@ -876,19 +948,20 @@ $5FFF 	Background
 $6000 - $63E7 	Screen RAM
 *)
 procedure TC64.IMGSYSload(ca: TCanvas);
-var koala: MULTIdata;
+var data: MULTIdata;
     g: word;
     none: byte;
 begin
   if not assigned(ca) then exit;
+  MULTICOLORclear(data);  
   read(f, none, none);
-  for g := 0 to 999 do read(f, koala.ink2[g]);
+  for g := 0 to 999 do read(f, data.ink2[g]);
   for g := 0 to 23 do read(f, none); //?
-  for g := 0 to 7999 do read(f, koala.bitmap[g]);
+  for g := 0 to 7999 do read(f, data.bitmap[g]);
   for g := 0 to 191-1 do read(f, none); //10218-2-1000-1000-24-8000-1 = 191
-  read(f, koala.backGr);
-  for g := 0 to 999 do read(f, koala.ink1[g]);
-  MULTICOLORshow(koala, ca);
+  read(f, data.backGr);
+  for g := 0 to 999 do read(f, data.ink1[g]);
+  MULTICOLORshow(data, ca);
 end;
 
 (*
@@ -907,6 +980,7 @@ var data: MULTIdata;
     c, none: byte;
 begin
   if not assigned(ca) then exit;
+  MULTICOLORclear(data);  
   read(f, none, none);
   for g := 0 to $3FFF-$3F8E-1+(1) do read(f, none); //display routine
   for g := 0 to 7999 do read(f, data.bitmap[g]);
@@ -932,9 +1006,10 @@ $4338 - $471F 	Color RAM
 procedure TC64.ADVARTSTload(ca: TCanvas);
 var data: MULTIdata;
     g: word;
-    c, none: byte;
+    none: byte;
 begin
   if not assigned(ca) then exit;
+  MULTICOLORclear(data);  
   read(f, none, none);
   for g := 0 to 7999 do read(f, data.bitmap[g]);
   for g := 0 to 999 do read(f, data.ink1[g]);
@@ -946,46 +1021,46 @@ begin
 end;
 
 procedure TC64.HIRESload(ca: TCanvas);
-var HIRES: HIRESdata;
+var data: HIRESdata;
     g: word;
     none: byte;
 begin
   if not assigned(ca) then exit;
+  HIRESclear(data);
   {9009 bytes - what's that!?}
   read(f, none, none);
-  for g := 0 to $3f40-$2000-1 do read(f, hires.bitmap[g]);
-  for g := 0 to $4328-$3f40-1 do read(f, hires.ink[g]);
-  HIRESshow(hires, ca);
+  for g := 0 to $3f40-$2000-1 do read(f, data.bitmap[g]);
+  for g := 0 to $4328-$3f40-1 do read(f, data.ink[g]);
+  HIRESshow(data, ca);
 end;
 
 procedure TC64.HIRESloadHED(ca: TCanvas);
-var HIRES: HIRESdata;
+var data: HIRESdata;
     g: word;
     none: byte;
 begin
   if not assigned(ca) then exit;
+  HIRESclear(data);  
   read(f, none, none);
-  for g := 0 to $3f3f-$2000-1 do read(f, hires.bitmap[g]);
+  for g := 0 to $3f3f-$2000-1 do read(f, data.bitmap[g]);
   for g := 0 to $4000-$3f3f-1 do read(f, none);
-  for g := 0 to $43e7-$4000-1 do read(f, hires.ink[g]);
-  HIRESshow(hires, ca);
+  for g := 0 to $43e7-$4000-1 do read(f, data.ink[g]);
+  HIRESshow(data, ca);
 end;
 
 procedure TC64.HIRESloadDDL(ca: TCanvas);
-var HIRES: HIRESdata;
+var data: HIRESdata;
     g: word;
     none: byte;
 begin
   if not assigned(ca) then exit;
-
-  for g := 0 to 999 do hires.ink[g] := 0;  //todo: common
-  for g := 0 to 7999 do hires.bitmap[g] := 0;  //todo: common
+  HIRESclear(data);
 //9218-1000-8000 = 218
   read(f, none, none);
-  for g := 0 to 999 do read(f, hires.ink[g]);
+  for g := 0 to 999 do read(f, data.ink[g]);
   for g := 0 to 7+8+8 do read(f, none); //but why???
-  for g := 0 to $7f3f-$6000-1+1 do read(f, hires.bitmap[g]);
-  HIRESshow(hires, ca);
+  for g := 0 to $7f3f-$6000-1+1 do read(f, data.bitmap[g]);
+  HIRESshow(data, ca);
 end;
 
 (*
@@ -995,18 +1070,18 @@ $4000 - $5f3f 	Bitmap
 $6000 - $63e7 	Screen RAM
 *)
 procedure TC64.HIRESloadISH(ca: TCanvas);
-var HIRES: HIRESdata;
+var data: HIRESdata;
     g: word;
     none: byte;
 begin
   if not assigned(ca) then exit;
-
-  for g := 0 to 999 do hires.ink[g] := 0;  //todo: common
-  for g := 0 to 7999 do hires.bitmap[g] := 0;  //todo: common
+  HIRESclear(data);
+  for g := 0 to 999 do data.ink[g] := 0;  //todo: common
+  for g := 0 to 7999 do data.bitmap[g] := 0;  //todo: common
   read(f, none, none);
-  for g := 0 to 7999 do read(f, hires.bitmap[g]);
-  for g := 0 to 999 do read(f, hires.ink[g]);
-  HIRESshow(hires, ca);
+  for g := 0 to 7999 do read(f, data.bitmap[g]);
+  for g := 0 to 999 do read(f, data.ink[g]);
+  HIRESshow(data, ca);
 end;
 
 procedure TC64.AMICAload(ca: TCanvas);
@@ -1078,59 +1153,57 @@ end;
 //---
 
 procedure TC64.LOGOload(ca: TCanvas);
-var logo: LOGOdata;
+var data: LOGOdata;
     g: word;
     none: byte;
 begin
   if not assigned(ca) then exit;
+  LOGOclear(data);
   read(f, none, none);
-  for g := 0 to $1c00-$1800-1 do
-    read(f,logo.logo[g]);
-  for g := $1800-$1800 to $2000-$1c00-1 do
-    read(f,none);
-  for g := $2000-$2000 to $2800-$2000-1 do
-    read(f,logo.bitmap[g]);
-  LOGOshow(logo, ca);
+  for g := 0 to $1c00-$1800-1 do read(f, data.logo[g]);
+  for g := $1800-$1800 to $2000-$1c00-1 do read(f, none);
+  for g := $2000-$2000 to $2800-$2000-1 do read(f, data.bitmap[g]);
+  LOGOshow(data, ca);
 end;
 
 procedure TC64.FNTload(ca: TCanvas);
-var fnt: FNTdata;
+var data: FNTdata;
     g, h: byte;
 begin
   if not assigned(ca) then exit;
 
-  for g := 1 to 255 do for h := 0 to 7 do fnt.fnt[g, h] := 0;
-
+  FNTclear(data);
   read(f, g, g);
   for g := 1 to 64 do
     for h := 0 to 7 do
-      read(f, fnt.fnt[g, h]);
+      read(f, data.fnt[g, h]);
+
   for h := 1 to 40 do
-    FNTshow(h*8-8, 0, fnt, ca, (h));
+    FNTshow(h*8-8, 0, data, ca, (h));
   for h := 1 to 24 do
-    FNTshow(h*8-8, 8, fnt, ca, (40+h));
+    FNTshow(h*8-8, 8, data, ca, (40+h));
 end;
 
 procedure TC64.FNTBload(ca: TCanvas);
-var fntb: FNTBdata;
+var data: FNTBdata;
     g, h, none: byte;
 begin
   if not assigned(ca) then exit;
 
   read(f, none, none);
-  for g := 1 to 64 do for h := 0 to 7 do read(f, fntb.fntb[g, h]);
-  for g := 1 to 64 do for h := 0 to 7 do read(f, fntb.fntb[g, h+8]);
-  for g := 1 to 64 do for h := 0 to 7 do read(f, fntb.fntb[g, h+16]);
-  for g := 1 to 64 do for h := 0 to 7 do read(f, fntb.fntb[g, h+24]);
+  for g := 1 to 64 do for h := 0 to 7 do read(f, data.fntb[g, h]);
+  for g := 1 to 64 do for h := 0 to 7 do read(f, data.fntb[g, h+8]);
+  for g := 1 to 64 do for h := 0 to 7 do read(f, data.fntb[g, h+16]);
+  for g := 1 to 64 do for h := 0 to 7 do read(f, data.fntb[g, h+24]);
 
   for h := 1 to 20 do
-    FNTBshow(h*16-16, 0, fntb, ca, (h));
+    FNTBshow(h*16-16, 0, data, ca, (h));
   for h := 1 to 20 do
-    FNTBshow(h*16-16, 16, fntb, ca, (20+h));
+    FNTBshow(h*16-16, 16, data, ca, (20+h));
   for h := 1 to 20 do
-    FNTBshow(h*16-16, 32, fntb, ca, (40+h));
+    FNTBshow(h*16-16, 32, data, ca, (40+h));
   for h := 1 to 4 do
-    FNTBshow(h*16-16, 48, fntb, ca, (60+h));
+    FNTBshow(h*16-16, 48, data, ca, (60+h));
 end;
 
 procedure TC64.MOBloadHires(ca: TCanvas);
@@ -1437,7 +1510,7 @@ begin
     C64_LOGO:     result := LoadLogoToBitmap(FileName, ca);
     C64_FNT:      result := LoadFontToBitmap(FileName, ca);
     C64_FNTB:     result := LoadFont2x2ToBitmap(FileName, ca);
-    C64_MOB:      result := LoadMobToBitmap(FileName, ca);
+    C64_MOB,      
     C64_MBF:      result := LoadMobToBitmap(FileName, ca);
     C64_FLI,
     C64_AFLI,
