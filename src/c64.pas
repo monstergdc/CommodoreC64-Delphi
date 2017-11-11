@@ -1,11 +1,12 @@
-unit c64;
+﻿unit c64;
 
 {$ifdef FPC}
 {$MODE Delphi}
 {$ENDIF}
 
 //------------------------------------------------------------------------------
-//Commodore C-64 GFX files manipulation Delphi (7+) class, v1.38
+//Commodore C-64 GFX files manipulation Delphi (7+) / Lazarus class, v1.38
+//Crossplatform (Delphi 7 / Lazarus on Win32, Lazarus on Linux)
 //(c)1994, 1995, 2009-2011, 2017 Noniewicz.com, Jakub Noniewicz aka MoNsTeR/GDC
 //E-mail: monster@Noniewicz.com
 //WWW: http://www.Noniewicz.com
@@ -55,7 +56,7 @@ unit c64;
 //updated: 20171105 1550-1630
 //updated: 20171105 1830-2055
 //updated: 20171111 1220-1500
-//updated: 20171111 1605-1745 ...
+//updated: 20171111 1605-1800
 
 {todo:
 # MAIN:
@@ -63,7 +64,6 @@ unit c64;
 - fnt/fntb/mob - more/misc (eg get given one, anim?)
 .- *FLI formats
 .- more exotic formats
-.- Lazarus - compile+check on Linux
 # NEXT:
 - cleanup: MOBloadHires v MOBloadMulticolor -> one call
 - separate load and bmp/canvas pack (rerender w/o load)
@@ -117,8 +117,9 @@ unit c64;
 - added support for Paint Magic (pc-ext: .pmg)
 - misc
 # v1.38
-- Lazarus compatible + Lazarus demo
+- crossplatform - Lazarus compatible + Lazarus demo
 - added support for Advanced Art Studio 2.0 (pc-ext: .ocp;.art)
+- Lazarus - compiled+checked on Linux (Debian 8.7.1)
 - misc
 }
 

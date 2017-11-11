@@ -1,5 +1,6 @@
 # CommodoreC64-Delphi
 Delphi/Lazarus class to manipulate Commodore C-64 graphics data
+with demo application, now crossplatform, tested under Windows and Linux (Debian).
 
 Supported formats include:
 - Koala Painter 2 (by AUDIO LIGHT) (pc-ext: .koa;.kla;.gg) -- .gg NOT YET
@@ -19,3 +20,7 @@ Supported formats include:
 - "logo" text format (using fonts in text mode to represent graphics)
 - Paint Magic (pc-ext: .pmg)
 - Advanced Art Studio 2.0 (by OCP) (pc-ext: .ocp;.art)  
+
+![demo screenshot](/demo-d7_w32.png?raw=true "demo screenshot Delphi 7")
+![demo screenshot](/demo-l_w32.png?raw=true "demo screenshot Lazarus/Win")
+![demo screenshot](/demo-l_linux.png?raw=true "demo screenshot Lazarus/Linux")
