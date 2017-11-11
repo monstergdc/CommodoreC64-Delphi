@@ -3,7 +3,7 @@ unit c64demoMainUnit;
 //TC64 Delphi class example / demo, v1.0
 //(c)2017 Noniewicz.com
 //created: 20171029
-//updated: 20171101, 05
+//updated: 20171101, 05, 11
 
 interface
 
@@ -22,9 +22,9 @@ type
     BitBtnLoad: TBitBtn;
     OpenDialog1: TOpenDialog;
     GroupBox1: TGroupBox;
-    BitBtn1: TBitBtn;
-    BitBtn2: TBitBtn;
-    BitBtn3: TBitBtn;
+    BitBtnKOALA: TBitBtn;
+    BitBtnHIRES: TBitBtn;
+    BitBtnAMICA: TBitBtn;
     BitBtn4: TBitBtn;
     BitBtn5: TBitBtn;
     BitBtn6: TBitBtn;
@@ -35,11 +35,13 @@ type
     BitBtn11: TBitBtn;
     BitBtn12: TBitBtn;
     BitBtn13: TBitBtn;
+    BitBtnHIEDDI: TBitBtn;
+    BitBtnDDL: TBitBtn;
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
-    procedure BitBtn1Click(Sender: TObject);
-    procedure BitBtn2Click(Sender: TObject);
-    procedure BitBtn3Click(Sender: TObject);
+    procedure BitBtnKOALAClick(Sender: TObject);
+    procedure BitBtnHIRESClick(Sender: TObject);
+    procedure BitBtnAMICAClick(Sender: TObject);
     procedure BitBtn4Click(Sender: TObject);
     procedure BitBtn5Click(Sender: TObject);
     procedure BitBtn6Click(Sender: TObject);
@@ -53,9 +55,13 @@ type
     procedure BitBtn11Click(Sender: TObject);
     procedure BitBtn12Click(Sender: TObject);
     procedure BitBtn13Click(Sender: TObject);
+    procedure BitBtnHIEDDIClick(Sender: TObject);
+    procedure BitBtnDDLClick(Sender: TObject);
   private
     c64: TC64;
-    procedure ClearImage;
+    procedure ClearImage(bfli: boolean = false);
+    procedure Set320x200;
+    procedure Set320x400;
   public
   end;
 
@@ -70,9 +76,7 @@ implementation
 procedure TForm1.FormCreate(Sender: TObject);
 begin
   c64 := TC64.Create;
-  Image1.Picture.Bitmap.Width := Image1.Width;
-  Image1.Picture.Bitmap.Height := Image1.Height;
-  Image1.Picture.Bitmap.PixelFormat := pf24bit;
+  ClearImage(false);
   folder := ExtractFilePath(Application.ExeName)+'..\c64-sampledata\';
   SaveDialog1.InitialDir := ExtractFilePath(Application.ExeName);
   OpenDialog1.InitialDir := ExtractFilePath(folder);
@@ -83,30 +87,52 @@ begin
   c64.Free;
 end;
 
-procedure TForm1.ClearImage;
+procedure TForm1.ClearImage(bfli: boolean = false);
 begin
+  if bfli then Set320x400 else Set320x200;
+  Image1.Picture.Bitmap.PixelFormat := pf24bit;
   Image1.Picture.Bitmap.Canvas.Pen.Color := clWhite;
   Image1.Picture.Bitmap.Canvas.Brush.Color := clBlack;
   Image1.Picture.Bitmap.Canvas.FillRect(RECT(0, 0, Image1.Picture.Bitmap.Width, Image1.Picture.Bitmap.Height));
 end;
 
-procedure TForm1.BitBtn1Click(Sender: TObject);
+procedure TForm1.Set320x200;
 begin
+  Image1.Width := 320;
+  Image1.Height := 200;
+  Image1.Picture.Bitmap.Width := 320;
+  Image1.Picture.Bitmap.Height := 200;
+end;
+
+procedure TForm1.Set320x400;
+begin
+  Image1.Width := 320;
+  Image1.Height := 400;
+  Image1.Picture.Bitmap.Width := 320;
+  Image1.Picture.Bitmap.Height := 400;
+end;
+
+procedure TForm1.BitBtnKOALAClick(Sender: TObject);
+begin
+  ClearImage;
   c64.LoadKoalaToBitmap(folder+'PIC_GDC.koa', Image1.Picture.Bitmap.Canvas, C64_KOALA);
 end;
 
-procedure TForm1.BitBtn2Click(Sender: TObject);
+procedure TForm1.BitBtnHIRESClick(Sender: TObject);
 begin
+  ClearImage;
   c64.LoadHiresToBitmap(folder+'ZX-FLORD.PIC', Image1.Picture.Bitmap.Canvas, C64_HIRES);
 end;
 
-procedure TForm1.BitBtn3Click(Sender: TObject);
+procedure TForm1.BitBtnAMICAClick(Sender: TObject);
 begin
+  ClearImage;
   c64.LoadAmicaToBitmap(folder+'[b]stormlord.[b]', Image1.Picture.Bitmap.Canvas);
 end;
 
 procedure TForm1.BitBtn4Click(Sender: TObject);
 begin
+  ClearImage;
   c64.LoadLogoToBitmap(folder+'MYLOGOV2.GFX', Image1.Picture.Bitmap.Canvas);
 end;
 
@@ -182,7 +208,7 @@ procedure TForm1.BitBtnLoadClick(Sender: TObject);
 begin
   if OpenDialog1.Execute then
   begin
-    ClearImage;
+    ClearImage(c64.ExtMapper(ExtractFileExt(OpenDialog1.FileName)) = C64_BFLI);
     if c64.LoadC64ToBitmap(OpenDialog1.FileName, Image1.Picture.Bitmap.Canvas) <> 0 then
       showmessage('ERROR: '+c64.LastError);
   end;
@@ -197,7 +223,7 @@ end;
 
 procedure TForm1.BitBtn10Click(Sender: TObject);
 begin
-  ClearImage;
+  ClearImage(true);
   c64.LoadFliToBitmap(folder+'kira.bfli', Image1.Picture.Bitmap.Canvas);
 end;
 
@@ -218,6 +244,18 @@ procedure TForm1.BitBtn13Click(Sender: TObject);
 begin
   ClearImage;
   c64.LoadFliToBitmap(folder+'logo.afl', Image1.Picture.Bitmap.Canvas);
+end;
+
+procedure TForm1.BitBtnHIEDDIClick(Sender: TObject);
+begin
+  ClearImage;
+  c64.LoadHiresToBitmap(folder+'Hii-Eddi.hed', Image1.Picture.Bitmap.Canvas, C64_HED);
+end;
+
+procedure TForm1.BitBtnDDLClick(Sender: TObject);
+begin
+  ClearImage;
+  c64.LoadHiresToBitmap(folder+'midear.dd', Image1.Picture.Bitmap.Canvas, C64_DDL);
 end;
 
 end.

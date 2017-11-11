@@ -1,7 +1,7 @@
 unit c64;
 
 //------------------------------------------------------------------------------
-//Commodore C-64 GFX files manipulation Delphi (7+) class, v1.36
+//Commodore C-64 GFX files manipulation Delphi (7+) class, v1.37
 //(c)1994, 1995, 2009-2011, 2017 Noniewicz.com, Jakub Noniewicz aka MoNsTeR/GDC
 //E-mail: monster@Noniewicz.com
 //WWW: http://www.Noniewicz.com
@@ -47,16 +47,16 @@ unit c64;
 //updated: 20171105 1455-1520
 //updated: 20171105 1550-1630
 //updated: 20171105 1830-2055
+//updated: 20171111 1220-1310
 
 {todo:
 # MAIN:
 .- fnt/fntb/logo/mob - colors issue? (proper params) - use FColors4 (call set)
+- fnt/fntb/mob - more/misc (eg get given one, hires v multi)
 .- *FLI formats
 .- more exotic formats
-.- final RGB color - get via one common call
-- fnt/fntb/mob - more/misc (eg get given one, hires v multi)
-- FIX: bfli seems cut?
 # NEXT:
+.- final RGB color - get via one common call
 - Lazarus friendly (laz demo too, compile+check on Linux)
 - also BDS demo
 - separate load and bmp/canvas pack
@@ -100,6 +100,8 @@ unit c64;
 - added support for Image System (Hires) (.ish)
 - added support for Image System (Multicolor) (.ism;.ims)
 - misc fixes/updates
+# v1.37
+- fixed BFLI display (h=400) 
 }
 
 interface

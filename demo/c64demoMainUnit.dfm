@@ -2,7 +2,7 @@ object Form1: TForm1
   Left = 188
   Top = 107
   Width = 618
-  Height = 262
+  Height = 456
   Caption = 'TC64 Delphi class demo'
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
@@ -19,14 +19,14 @@ object Form1: TForm1
     Left = 8
     Top = 24
     Width = 320
-    Height = 200
+    Height = 400
   end
   object Label1: TLabel
     Left = 8
     Top = 8
-    Width = 72
+    Width = 128
     Height = 13
-    Caption = '320x200 image'
+    Caption = '320x200 or 320x400 image'
   end
   object BitBtnSave: TBitBtn
     Left = 432
@@ -62,32 +62,32 @@ object Form1: TForm1
     Height = 177
     Caption = 'Predefined quick examples'
     TabOrder = 3
-    object BitBtn1: TBitBtn
+    object BitBtnKOALA: TBitBtn
       Left = 8
       Top = 16
       Width = 75
       Height = 25
       Caption = 'KOALA'
       TabOrder = 0
-      OnClick = BitBtn1Click
+      OnClick = BitBtnKOALAClick
     end
-    object BitBtn2: TBitBtn
+    object BitBtnHIRES: TBitBtn
       Left = 8
       Top = 48
       Width = 75
       Height = 25
       Caption = 'HIRES'
       TabOrder = 1
-      OnClick = BitBtn2Click
+      OnClick = BitBtnHIRESClick
     end
-    object BitBtn3: TBitBtn
+    object BitBtnAMICA: TBitBtn
       Left = 8
       Top = 80
       Width = 75
       Height = 25
       Caption = 'AMICA'
       TabOrder = 2
-      OnClick = BitBtn3Click
+      OnClick = BitBtnAMICAClick
     end
     object BitBtn4: TBitBtn
       Left = 88
@@ -95,7 +95,7 @@ object Form1: TForm1
       Width = 75
       Height = 25
       Caption = 'LOGO'
-      TabOrder = 3
+      TabOrder = 5
       OnClick = BitBtn4Click
     end
     object BitBtn5: TBitBtn
@@ -104,7 +104,7 @@ object Form1: TForm1
       Width = 75
       Height = 25
       Caption = 'FONT'
-      TabOrder = 4
+      TabOrder = 6
       OnClick = BitBtn5Click
     end
     object BitBtn6: TBitBtn
@@ -113,7 +113,7 @@ object Form1: TForm1
       Width = 75
       Height = 25
       Caption = 'FONT 2x2'
-      TabOrder = 5
+      TabOrder = 7
       OnClick = BitBtn6Click
     end
     object BitBtn7: TBitBtn
@@ -122,7 +122,7 @@ object Form1: TForm1
       Width = 75
       Height = 25
       Caption = 'MOB'
-      TabOrder = 6
+      TabOrder = 8
       OnClick = BitBtn7Click
     end
     object BitBtn8: TBitBtn
@@ -131,7 +131,7 @@ object Form1: TForm1
       Width = 75
       Height = 25
       Caption = 'MFB'
-      TabOrder = 7
+      TabOrder = 9
       OnClick = BitBtn8Click
     end
     object BitBtn9: TBitBtn
@@ -141,7 +141,7 @@ object Form1: TForm1
       Height = 25
       Caption = 'IFLI?'
       Enabled = False
-      TabOrder = 8
+      TabOrder = 10
       OnClick = BitBtn9Click
     end
     object BitBtn10: TBitBtn
@@ -150,7 +150,7 @@ object Form1: TForm1
       Width = 75
       Height = 25
       Caption = 'BFLI'
-      TabOrder = 9
+      TabOrder = 11
       OnClick = BitBtn10Click
     end
     object BitBtn11: TBitBtn
@@ -160,7 +160,7 @@ object Form1: TForm1
       Height = 25
       Caption = 'FFLI?'
       Enabled = False
-      TabOrder = 10
+      TabOrder = 12
       OnClick = BitBtn11Click
     end
     object BitBtn12: TBitBtn
@@ -169,7 +169,7 @@ object Form1: TForm1
       Width = 75
       Height = 25
       Caption = 'FLI'
-      TabOrder = 11
+      TabOrder = 13
       OnClick = BitBtn12Click
     end
     object BitBtn13: TBitBtn
@@ -178,8 +178,26 @@ object Form1: TForm1
       Width = 75
       Height = 25
       Caption = 'AFLI'
-      TabOrder = 12
+      TabOrder = 14
       OnClick = BitBtn13Click
+    end
+    object BitBtnHIEDDI: TBitBtn
+      Left = 8
+      Top = 112
+      Width = 75
+      Height = 25
+      Caption = 'HI-EDDI'
+      TabOrder = 3
+      OnClick = BitBtnHIEDDIClick
+    end
+    object BitBtnDDL: TBitBtn
+      Left = 8
+      Top = 144
+      Width = 75
+      Height = 25
+      Caption = 'DDL'
+      TabOrder = 4
+      OnClick = BitBtnDDLClick
     end
   end
   object SaveDialog1: TSaveDialog
