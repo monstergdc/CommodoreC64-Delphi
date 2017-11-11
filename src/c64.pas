@@ -47,24 +47,24 @@ unit c64;
 //updated: 20171105 1455-1520
 //updated: 20171105 1550-1630
 //updated: 20171105 1830-2055
-//updated: 20171111 1220-1355
+//updated: 20171111 1220-1500 ...
 
 {todo:
 # MAIN:
-.- fnt/fntb/logo/mob - colors issue? (proper params) - use FColors4 (call set)
-- fnt/fntb/mob - more/misc (eg get given one, hires v multi)
+.- fnt/fntb/logo - hires v multi - FNTload(multi) / FNTBshow(hires) / LOGOshow(hires)
+- fnt/fntb/mob - more/misc (eg get given one)
 .- *FLI formats
 .- more exotic formats
+- MOBloadHires v MOBloadMulticolor -> one call
 # NEXT:
-.- final RGB color - get via one common call
 - Lazarus friendly (laz demo too, compile+check on Linux)
-- also BDS demo
-- separate load and bmp/canvas pack
+- separate load and bmp/canvas pack (rerender w/o load)
 # LATER:
+- also BDS demo?
 - add misc limit checks
 - add deeper byte format detection
 - also open source c64pas app
-- pack back to C64 formats and write (colormap?)
+- pack back to C64 formats and write (colormap, dither?)
 - ZX analogue (6144/768/6912)?
 - C code version (so more portable) ?
 }
@@ -103,6 +103,10 @@ unit c64;
 - fixed BFLI display (h=400)
 - added more palletes: C64S_PAL FRODO_PAL GODOT_PAL PC64_PAL VICE_PAL
 - old VICE_PAL was actually CCS64_PAL
+- final RGB color - get via one common call
+- fnt/fntb/logo/mob - fixed colors issue (can now set proper 4 colors)
+- hires/multi mode for font/logo/sprites - param exposed 
+- misc
 }
 
 interface
@@ -169,6 +173,7 @@ private
   FColors4: array [0..3] of byte;
   FLastError: string;
   FPalette: TC64Pallete;
+  FAsHires: boolean;
 
   function GenericLoader(FileName: string; callback: TC64Loader; ca: TCanvas; mode: TC64FileType): integer;
 
@@ -202,6 +207,9 @@ private
 public
   constructor Create;
   function GetC64Color(index: integer): TColor;
+  function GetC64ColorR(index: integer): byte;
+  function GetC64ColorG(index: integer): byte;
+  function GetC64ColorB(index: integer): byte;
   procedure Set4Colors(color0, color1, color2, color3: byte);
   function ExtMapper(ext: string): TC64FileType;
 
@@ -211,13 +219,14 @@ public
   function LoadLogoToBitmap(FileName: string; ca: TCanvas): integer;
   function LoadFontToBitmap(FileName: string; ca: TCanvas): integer;
   function LoadFont2x2ToBitmap(FileName: string; ca: TCanvas): integer;
-  function LoadMobToBitmap(FileName: string; ca: TCanvas; hires: boolean): integer;
+  function LoadMobToBitmap(FileName: string; ca: TCanvas): integer;
   function LoadFliToBitmap(FileName: string; ca: TCanvas): integer;
 
   function LoadC64ToBitmap(FileName: string; ca: TCanvas): integer;  
 published
   property LastError: string read FLastError;
   property Palette: TC64Pallete read FPalette write FPalette;
+  property AsHires: boolean read FAsHires write FAsHires;
 end;
 
 
@@ -266,6 +275,7 @@ constructor TC64.Create;
 begin
   inherited;
   FPalette := CCS64_PAL;
+  FAsHires := false;
   Set4Colors(0, 1, 15, 11);
 end;
 
@@ -281,6 +291,54 @@ begin
       GODOT_PAL: result := RGB(godot_r[index], godot_g[index], godot_b[index]);
       PC64_PAL:  result := RGB(pc64_r[index], pc64_g[index], pc64_b[index]);
       VICE_PAL:  result := RGB(vice_r[index], vice_g[index], vice_b[index]);
+      else result := 0;
+    end;
+end;
+
+function TC64.GetC64ColorR(index: integer): byte;
+begin
+  if not (index in [0..15]) then
+    result := 0
+  else
+    case FPalette of
+      C64S_PAL:  result := c64s_r[index];
+      CCS64_PAL: result := ccs64_r[index];
+      FRODO_PAL: result := frodo_r[index];
+      GODOT_PAL: result := godot_r[index];
+      PC64_PAL:  result := pc64_r[index];
+      VICE_PAL:  result := vice_r[index];
+      else result := 0;
+    end;
+end;
+
+function TC64.GetC64ColorG(index: integer): byte;
+begin
+  if not (index in [0..15]) then
+    result := 0
+  else
+    case FPalette of
+      C64S_PAL:  result := c64s_g[index];
+      CCS64_PAL: result := ccs64_g[index];
+      FRODO_PAL: result := frodo_g[index];
+      GODOT_PAL: result := godot_g[index];
+      PC64_PAL:  result := pc64_g[index];
+      VICE_PAL:  result := vice_g[index];
+      else result := 0;
+    end;
+end;
+
+function TC64.GetC64ColorB(index: integer): byte;
+begin
+  if not (index in [0..15]) then
+    result := 0
+  else
+    case FPalette of
+      C64S_PAL:  result := c64s_b[index];
+      CCS64_PAL: result := ccs64_b[index];
+      FRODO_PAL: result := frodo_b[index];
+      GODOT_PAL: result := godot_b[index];
+      PC64_PAL:  result := pc64_b[index];
+      VICE_PAL:  result := vice_b[index];
       else result := 0;
     end;
 end;
@@ -483,6 +541,7 @@ begin
           vl1 := ((bt2 and pow[bit*2]) div pow[bit*2]);
           vl2 := ((bt2 and pow[bit*2+1]) div pow[bit*2+1]);
           vl := vl1+2*vl2;
+          //todo: hires too
           case vl of
             0: c := GetC64Color(FColors4[0]);
             1: c := GetC64Color(FColors4[1]);
@@ -509,10 +568,11 @@ begin
     for bit := 0 to 7 do
     begin
       vl := bt and pow[bit];
+      //todo: multicolor too
       if vl = 0 then
-        c := GetC64Color(0) //black bg
+        c := GetC64Color(FColors4[0]) //bg
       else
-        c := GetC64Color(1); //white fg
+        c := GetC64Color(FColors4[1]); //fg
       ca.pixels[x0+8-bit, y0+y] := c;
     end;
   end;
@@ -534,6 +594,7 @@ begin
         vl1 := (bt and pow[bit*2]) div pow[bit*2];
         vl2 := (bt and pow[bit*2+1]) div pow[bit*2+1];
         vl := vl1+2*vl2;
+        //todo: hires too
         case vl of
           0: cl := GetC64Color(FColors4[0]);
           1: cl := GetC64Color(FColors4[1]);
@@ -704,17 +765,17 @@ begin
         3: c1 := ifli.colmem[ind] and $0f;
       end;
 
-	    buffer[6*x+0] := (buffer[6*x+0] + ccs64_r[c0]) div 2;
-	    buffer[6*x+1] := (buffer[6*x+1] + ccs64_g[c0]) div 2;
-	    buffer[6*x+2] := (buffer[6*x+2] + ccs64_b[c0]) div 2;
+	    buffer[6*x+0] := (buffer[6*x+0] + GetC64ColorR(c0)) div 2;
+	    buffer[6*x+1] := (buffer[6*x+1] + GetC64ColorG(c0)) div 2;
+	    buffer[6*x+2] := (buffer[6*x+2] + GetC64ColorB(c0)) div 2;
 
-	    buffer[6*x+3] := (ccs64_r[c1] + ccs64_r[c0]) div 2;
-	    buffer[6*x+4] := (ccs64_g[c1] + ccs64_g[c0]) div 2;
-	    buffer[6*x+5] := (ccs64_b[c1] + ccs64_b[c0]) div 2;
+	    buffer[6*x+3] := (GetC64ColorR(c1) + GetC64ColorR(c0)) div 2;
+	    buffer[6*x+4] := (GetC64ColorG(c1) + GetC64ColorG(c0)) div 2;
+	    buffer[6*x+5] := (GetC64ColorB(c1) + GetC64ColorB(c0)) div 2;
 
-	    buffer[6*x+6] := ccs64_r[c1];
-	    buffer[6*x+7] := ccs64_g[c1];
-	    buffer[6*x+8] := ccs64_b[c1];
+	    buffer[6*x+6] := GetC64ColorR(c1);
+	    buffer[6*x+7] := GetC64ColorG(c1);
+	    buffer[6*x+8] := GetC64ColorB(c1);
     end;
     for x := 0 to 320-1 do
       ca.Pixels[x, y] := RGB(buffer[x*3+0], buffer[x*3+1], buffer[x*3+2]);
@@ -952,7 +1013,6 @@ begin
     read(f,none);
   for g := $2000-$2000 to $2800-$2000-1 do
     read(f,logo.bitmap[g]);
-  Set4Colors(3, 1, 6, 0); //todo: you know what!
   LOGOshow(logo, ca);
 end;
 
@@ -985,8 +1045,6 @@ begin
   for g := 1 to 64 do for h := 0 to 7 do read(f, fntb.fntb[g, h+8]);
   for g := 1 to 64 do for h := 0 to 7 do read(f, fntb.fntb[g, h+16]);
   for g := 1 to 64 do for h := 0 to 7 do read(f, fntb.fntb[g, h+24]);
-
-  Set4Colors(0, 1, 15, 2); //todo: you know what!
 
   for h := 1 to 20 do
     FNTBshow(h*16-16, 0, fntb, ca, (h));
@@ -1044,8 +1102,6 @@ begin
     inc(mob.cnt)
   end;
   dec(mob.cnt);
-
-  Set4Colors(0, 6, 14, 1); //todo: fix/par!
 
   for g := 1 to 13 do
     if g <= mob.cnt then
@@ -1264,10 +1320,10 @@ begin
   result := GenericLoader(FileName, FNTBload, ca, C64_FNTB);
 end;
 
-function TC64.LoadMobToBitmap(FileName: string; ca: TCanvas; hires: boolean): integer;
+function TC64.LoadMobToBitmap(FileName: string; ca: TCanvas): integer;
 var loader: TC64Loader;
 begin
-  if hires then
+  if FAsHires then
     loader := MOBloadHires 
   else
     loader := MOBloadMulticolor;
@@ -1300,8 +1356,8 @@ begin
     C64_LOGO:     result := LoadLogoToBitmap(FileName, ca);
     C64_FNT:      result := LoadFontToBitmap(FileName, ca);
     C64_FNTB:     result := LoadFont2x2ToBitmap(FileName, ca);
-    C64_MOB:      result := LoadMobToBitmap(FileName, ca, false);
-    C64_MBF:      result := LoadMobToBitmap(FileName, ca, true);
+    C64_MOB:      result := LoadMobToBitmap(FileName, ca);
+    C64_MBF:      result := LoadMobToBitmap(FileName, ca);
     C64_FLI,
     C64_AFLI,
     C64_BFLI,

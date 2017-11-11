@@ -1,9 +1,10 @@
 object Form1: TForm1
   Left = 188
   Top = 107
-  Width = 618
-  Height = 456
+  BorderStyle = bsDialog
   Caption = 'TC64 Delphi class demo'
+  ClientHeight = 429
+  ClientWidth = 610
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
@@ -30,7 +31,7 @@ object Form1: TForm1
   end
   object BitBtnSave: TBitBtn
     Left = 432
-    Top = 192
+    Top = 232
     Width = 75
     Height = 25
     Caption = 'Save img...'
@@ -39,7 +40,7 @@ object Form1: TForm1
   end
   object BitBtnAbout: TBitBtn
     Left = 512
-    Top = 192
+    Top = 232
     Width = 75
     Height = 25
     Caption = 'About'
@@ -48,7 +49,7 @@ object Form1: TForm1
   end
   object BitBtnLoad: TBitBtn
     Left = 352
-    Top = 192
+    Top = 232
     Width = 75
     Height = 25
     Caption = 'Load...'
@@ -59,7 +60,7 @@ object Form1: TForm1
     Left = 344
     Top = 8
     Width = 257
-    Height = 177
+    Height = 217
     Caption = 'Predefined quick examples'
     TabOrder = 3
     object BitBtnKOALA: TBitBtn
@@ -89,49 +90,49 @@ object Form1: TForm1
       TabOrder = 2
       OnClick = BitBtnAMICAClick
     end
-    object BitBtn4: TBitBtn
+    object BitBtnLOGO: TBitBtn
       Left = 88
       Top = 16
       Width = 75
       Height = 25
       Caption = 'LOGO'
       TabOrder = 5
-      OnClick = BitBtn4Click
+      OnClick = BitBtnLOGOClick
     end
-    object BitBtn5: TBitBtn
+    object BitBtnFONT: TBitBtn
       Left = 88
       Top = 48
       Width = 75
       Height = 25
-      Caption = 'FONT'
+      Caption = 'FONT 1x1'
       TabOrder = 6
-      OnClick = BitBtn5Click
+      OnClick = BitBtnFONTClick
     end
-    object BitBtn6: TBitBtn
+    object BitBtnFNTB: TBitBtn
       Left = 88
       Top = 80
       Width = 75
       Height = 25
       Caption = 'FONT 2x2'
       TabOrder = 7
-      OnClick = BitBtn6Click
+      OnClick = BitBtnFNTBClick
     end
-    object BitBtn7: TBitBtn
+    object BitBtnMOBM: TBitBtn
       Left = 88
       Top = 112
       Width = 75
       Height = 25
-      Caption = 'MOB'
+      Caption = 'MOB M'
       TabOrder = 8
-      OnClick = BitBtn7Click
+      OnClick = BitBtnMOBMClick
     end
     object BitBtn8: TBitBtn
       Left = 88
-      Top = 144
+      Top = 176
       Width = 75
       Height = 25
       Caption = 'MFB'
-      TabOrder = 9
+      TabOrder = 10
       OnClick = BitBtn8Click
     end
     object BitBtn9: TBitBtn
@@ -141,17 +142,17 @@ object Form1: TForm1
       Height = 25
       Caption = 'IFLI?'
       Enabled = False
-      TabOrder = 10
+      TabOrder = 11
       OnClick = BitBtn9Click
     end
-    object BitBtn10: TBitBtn
+    object BitBtnBFLI: TBitBtn
       Left = 168
       Top = 48
       Width = 75
       Height = 25
       Caption = 'BFLI'
-      TabOrder = 11
-      OnClick = BitBtn10Click
+      TabOrder = 12
+      OnClick = BitBtnBFLIClick
     end
     object BitBtn11: TBitBtn
       Left = 168
@@ -160,26 +161,26 @@ object Form1: TForm1
       Height = 25
       Caption = 'FFLI?'
       Enabled = False
-      TabOrder = 12
+      TabOrder = 13
       OnClick = BitBtn11Click
     end
-    object BitBtn12: TBitBtn
+    object BitBtnFLI: TBitBtn
       Left = 168
       Top = 112
       Width = 75
       Height = 25
       Caption = 'FLI'
-      TabOrder = 13
-      OnClick = BitBtn12Click
+      TabOrder = 14
+      OnClick = BitBtnFLIClick
     end
-    object BitBtn13: TBitBtn
+    object BitBtnAFLI: TBitBtn
       Left = 168
       Top = 144
       Width = 75
       Height = 25
       Caption = 'AFLI'
-      TabOrder = 14
-      OnClick = BitBtn13Click
+      TabOrder = 15
+      OnClick = BitBtnAFLIClick
     end
     object BitBtnHIEDDI: TBitBtn
       Left = 8
@@ -199,12 +200,21 @@ object Form1: TForm1
       TabOrder = 4
       OnClick = BitBtnDDLClick
     end
+    object BitBtnMOBH: TBitBtn
+      Left = 88
+      Top = 144
+      Width = 75
+      Height = 25
+      Caption = 'MOB H'
+      TabOrder = 9
+      OnClick = BitBtnMOBHClick
+    end
   end
   object RadioGroup1: TRadioGroup
     Left = 352
-    Top = 232
+    Top = 280
     Width = 97
-    Height = 129
+    Height = 145
     Caption = 'Palette'
     ItemIndex = 0
     Items.Strings = (
@@ -216,6 +226,86 @@ object Form1: TForm1
       'VICE')
     TabOrder = 4
     OnClick = RadioGroup1Click
+  end
+  object GroupBox2: TGroupBox
+    Left = 456
+    Top = 280
+    Width = 145
+    Height = 145
+    Caption = 'Four colors + mode'
+    TabOrder = 5
+    object Label2: TLabel
+      Left = 16
+      Top = 28
+      Width = 20
+      Height = 13
+      Caption = 'C#0'
+    end
+    object Label3: TLabel
+      Left = 16
+      Top = 52
+      Width = 20
+      Height = 13
+      Caption = 'C#1'
+    end
+    object Label4: TLabel
+      Left = 16
+      Top = 76
+      Width = 20
+      Height = 13
+      Caption = 'C#2'
+    end
+    object Label5: TLabel
+      Left = 16
+      Top = 100
+      Width = 20
+      Height = 13
+      Caption = 'C#3'
+    end
+    object ComboBoxC0: TComboBox
+      Left = 48
+      Top = 24
+      Width = 89
+      Height = 21
+      Style = csDropDownList
+      ItemHeight = 13
+      TabOrder = 0
+    end
+    object ComboBoxC1: TComboBox
+      Left = 48
+      Top = 48
+      Width = 89
+      Height = 21
+      Style = csDropDownList
+      ItemHeight = 13
+      TabOrder = 1
+    end
+    object ComboBoxC2: TComboBox
+      Left = 48
+      Top = 72
+      Width = 89
+      Height = 21
+      Style = csDropDownList
+      ItemHeight = 13
+      TabOrder = 2
+    end
+    object ComboBoxC3: TComboBox
+      Left = 48
+      Top = 96
+      Width = 89
+      Height = 21
+      Style = csDropDownList
+      ItemHeight = 13
+      TabOrder = 3
+    end
+    object cbHires: TCheckBox
+      Left = 8
+      Top = 120
+      Width = 97
+      Height = 17
+      Caption = 'As Hires?'
+      TabOrder = 4
+    end
   end
   object SaveDialog1: TSaveDialog
     Options = [ofOverwritePrompt, ofHideReadOnly, ofPathMustExist, ofEnableSizing]

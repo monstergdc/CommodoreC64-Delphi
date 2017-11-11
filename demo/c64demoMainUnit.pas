@@ -25,40 +25,52 @@ type
     BitBtnKOALA: TBitBtn;
     BitBtnHIRES: TBitBtn;
     BitBtnAMICA: TBitBtn;
-    BitBtn4: TBitBtn;
-    BitBtn5: TBitBtn;
-    BitBtn6: TBitBtn;
-    BitBtn7: TBitBtn;
+    BitBtnLOGO: TBitBtn;
+    BitBtnFONT: TBitBtn;
+    BitBtnFNTB: TBitBtn;
+    BitBtnMOBM: TBitBtn;
     BitBtn8: TBitBtn;
     BitBtn9: TBitBtn;
-    BitBtn10: TBitBtn;
+    BitBtnBFLI: TBitBtn;
     BitBtn11: TBitBtn;
-    BitBtn12: TBitBtn;
-    BitBtn13: TBitBtn;
+    BitBtnFLI: TBitBtn;
+    BitBtnAFLI: TBitBtn;
     BitBtnHIEDDI: TBitBtn;
     BitBtnDDL: TBitBtn;
     RadioGroup1: TRadioGroup;
+    GroupBox2: TGroupBox;
+    ComboBoxC0: TComboBox;
+    Label2: TLabel;
+    ComboBoxC1: TComboBox;
+    Label3: TLabel;
+    ComboBoxC2: TComboBox;
+    Label4: TLabel;
+    ComboBoxC3: TComboBox;
+    Label5: TLabel;
+    BitBtnMOBH: TBitBtn;
+    cbHires: TCheckBox;
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
     procedure BitBtnKOALAClick(Sender: TObject);
     procedure BitBtnHIRESClick(Sender: TObject);
     procedure BitBtnAMICAClick(Sender: TObject);
-    procedure BitBtn4Click(Sender: TObject);
-    procedure BitBtn5Click(Sender: TObject);
-    procedure BitBtn6Click(Sender: TObject);
+    procedure BitBtnLOGOClick(Sender: TObject);
+    procedure BitBtnFONTClick(Sender: TObject);
+    procedure BitBtnFNTBClick(Sender: TObject);
     procedure BitBtnSaveClick(Sender: TObject);
     procedure BitBtnAboutClick(Sender: TObject);
     procedure BitBtnLoadClick(Sender: TObject);
-    procedure BitBtn7Click(Sender: TObject);
+    procedure BitBtnMOBMClick(Sender: TObject);
     procedure BitBtn8Click(Sender: TObject);
     procedure BitBtn9Click(Sender: TObject);
-    procedure BitBtn10Click(Sender: TObject);
+    procedure BitBtnBFLIClick(Sender: TObject);
     procedure BitBtn11Click(Sender: TObject);
-    procedure BitBtn12Click(Sender: TObject);
-    procedure BitBtn13Click(Sender: TObject);
+    procedure BitBtnFLIClick(Sender: TObject);
+    procedure BitBtnAFLIClick(Sender: TObject);
     procedure BitBtnHIEDDIClick(Sender: TObject);
     procedure BitBtnDDLClick(Sender: TObject);
     procedure RadioGroup1Click(Sender: TObject);
+    procedure BitBtnMOBHClick(Sender: TObject);
   private
     c64: TC64;
     procedure ClearImage(bfli: boolean = false);
@@ -76,12 +88,24 @@ implementation
 {$R *.dfm}
 
 procedure TForm1.FormCreate(Sender: TObject);
+var i: integer;
 begin
   c64 := TC64.Create;
   ClearImage(false);
   folder := ExtractFilePath(Application.ExeName)+'..\c64-sampledata\';
   SaveDialog1.InitialDir := ExtractFilePath(Application.ExeName);
   OpenDialog1.InitialDir := ExtractFilePath(folder);
+
+  ComboBoxC0.Items.Clear;
+  for i := 0 to 15 do
+    ComboBoxC0.Items.Add(inttostr(i));
+  ComboBoxC1.Items.Text := ComboBoxC0.Items.Text;
+  ComboBoxC2.Items.Text := ComboBoxC0.Items.Text;
+  ComboBoxC3.Items.Text := ComboBoxC0.Items.Text;
+  ComboBoxC0.ItemIndex := 0;
+  ComboBoxC1.ItemIndex := 0;
+  ComboBoxC2.ItemIndex := 0;
+  ComboBoxC3.ItemIndex := 0;
 end;
 
 procedure TForm1.FormDestroy(Sender: TObject);
@@ -132,34 +156,60 @@ begin
   c64.LoadAmicaToBitmap(folder+'[b]stormlord.[b]', Image1.Picture.Bitmap.Canvas);
 end;
 
-procedure TForm1.BitBtn4Click(Sender: TObject);
+procedure TForm1.BitBtnLOGOClick(Sender: TObject);
 begin
   ClearImage;
+  ComboBoxC0.ItemIndex := 3;
+  ComboBoxC1.ItemIndex := 1;
+  ComboBoxC2.ItemIndex := 6;
+  ComboBoxC3.ItemIndex := 0;
+  c64.Set4Colors(ComboBoxC0.ItemIndex, ComboBoxC1.ItemIndex, ComboBoxC2.ItemIndex, ComboBoxC3.ItemIndex);
+  c64.AsHires := false;
   c64.LoadLogoToBitmap(folder+'MYLOGOV2.GFX', Image1.Picture.Bitmap.Canvas);
 end;
 
-procedure TForm1.BitBtn5Click(Sender: TObject);
+procedure TForm1.BitBtnFONTClick(Sender: TObject);
 begin
   ClearImage;
+  c64.AsHires := true;
+  c64.Set4Colors(ComboBoxC0.ItemIndex, ComboBoxC1.ItemIndex, ComboBoxC2.ItemIndex, ComboBoxC3.ItemIndex);
   c64.LoadFontToBitmap(folder+'IRON-PL.FNT', Image1.Picture.Bitmap.Canvas);
 end;
 
-procedure TForm1.BitBtn6Click(Sender: TObject);
+procedure TForm1.BitBtnFNTBClick(Sender: TObject);
 begin
   ClearImage;
+  ComboBoxC0.ItemIndex := 0;
+  ComboBoxC1.ItemIndex := 1;
+  ComboBoxC2.ItemIndex := 15;
+  ComboBoxC3.ItemIndex := 2;
+  c64.Set4Colors(ComboBoxC0.ItemIndex, ComboBoxC1.ItemIndex, ComboBoxC2.ItemIndex, ComboBoxC3.ItemIndex);
+  c64.AsHires := false;
   c64.LoadFont2x2ToBitmap(folder+'LEONARDO.FNB', Image1.Picture.Bitmap.Canvas);
 end;
 
-procedure TForm1.BitBtn7Click(Sender: TObject);
+procedure TForm1.BitBtnMOBMClick(Sender: TObject);
 begin
   ClearImage;
-  c64.LoadMobToBitmap(folder+'ROZNE.MOB', Image1.Picture.Bitmap.Canvas, false);
+  ComboBoxC0.ItemIndex := 0;
+  ComboBoxC1.ItemIndex := 6;
+  ComboBoxC2.ItemIndex := 14;
+  ComboBoxC3.ItemIndex := 1;
+  c64.Set4Colors(ComboBoxC0.ItemIndex, ComboBoxC1.ItemIndex, ComboBoxC2.ItemIndex, ComboBoxC3.ItemIndex);
+  c64.AsHires := false;
+  c64.LoadMobToBitmap(folder+'ROZNE.MOB', Image1.Picture.Bitmap.Canvas);
 end;
 
 procedure TForm1.BitBtn8Click(Sender: TObject);
 begin
   ClearImage;
-  c64.LoadMobToBitmap(folder+'SWISS.MBF', Image1.Picture.Bitmap.Canvas, false);
+  ComboBoxC0.ItemIndex := 0;
+  ComboBoxC1.ItemIndex := 6;
+  ComboBoxC2.ItemIndex := 14;
+  ComboBoxC3.ItemIndex := 1;
+  c64.Set4Colors(ComboBoxC0.ItemIndex, ComboBoxC1.ItemIndex, ComboBoxC2.ItemIndex, ComboBoxC3.ItemIndex);
+  c64.AsHires := false;
+  c64.LoadMobToBitmap(folder+'SWISS.MBF', Image1.Picture.Bitmap.Canvas);
 end;
 
 procedure TForm1.BitBtnSaveClick(Sender: TObject);
@@ -211,6 +261,8 @@ begin
   if OpenDialog1.Execute then
   begin
     ClearImage(c64.ExtMapper(ExtractFileExt(OpenDialog1.FileName)) = C64_BFLI);
+    c64.Set4Colors(ComboBoxC0.ItemIndex, ComboBoxC1.ItemIndex, ComboBoxC2.ItemIndex, ComboBoxC3.ItemIndex);
+    c64.AsHires := cbHires.Checked;
     if c64.LoadC64ToBitmap(OpenDialog1.FileName, Image1.Picture.Bitmap.Canvas) <> 0 then
       showmessage('ERROR: '+c64.LastError);
   end;
@@ -223,7 +275,7 @@ begin
   showmessage('DEBUG: '+c64.LastError);
 end;
 
-procedure TForm1.BitBtn10Click(Sender: TObject);
+procedure TForm1.BitBtnBFLIClick(Sender: TObject);
 begin
   ClearImage(true);
   c64.LoadFliToBitmap(folder+'kira.bfli', Image1.Picture.Bitmap.Canvas);
@@ -236,13 +288,13 @@ begin
   showmessage('DEBUG: parrot: '+c64.LastError);
 end;
 
-procedure TForm1.BitBtn12Click(Sender: TObject);
+procedure TForm1.BitBtnFLIClick(Sender: TObject);
 begin
   ClearImage;
   c64.LoadFliToBitmap(folder+'cpu.fli', Image1.Picture.Bitmap.Canvas);
 end;
 
-procedure TForm1.BitBtn13Click(Sender: TObject);
+procedure TForm1.BitBtnAFLIClick(Sender: TObject);
 begin
   ClearImage;
   c64.LoadFliToBitmap(folder+'logo.afl', Image1.Picture.Bitmap.Canvas);
@@ -270,6 +322,18 @@ begin
     4: c64.Palette := PC64_PAL;
     5: c64.Palette := VICE_PAL;
   end;
+end;
+
+procedure TForm1.BitBtnMOBHClick(Sender: TObject);
+begin
+  ClearImage;
+  ComboBoxC0.ItemIndex := 0;
+  ComboBoxC1.ItemIndex := 1;
+  ComboBoxC2.ItemIndex := 0;
+  ComboBoxC3.ItemIndex := 0;
+  c64.Set4Colors(ComboBoxC0.ItemIndex, ComboBoxC1.ItemIndex, ComboBoxC2.ItemIndex, ComboBoxC3.ItemIndex);
+  c64.AsHires := true;
+  c64.LoadMobToBitmap(folder+'TFIGHT.MOB', Image1.Picture.Bitmap.Canvas);
 end;
 
 end.
