@@ -27,6 +27,7 @@ unit c64;
 //- 8x8 and 16x16 font (hires/multicolor) - YET UNFINISHED
 //- sprites (hires/multicolor, also font sprited) - YET UNFINISHED
 //- "logo" text format (using fonts in text mode to represent graphics)
+//- Paint Magic (pc-ext: .pmg) 
 //------------------------------------------------------------------------------
 //History:
 //created: somewhere in 1994-1995
@@ -47,7 +48,8 @@ unit c64;
 //updated: 20171105 1455-1520
 //updated: 20171105 1550-1630
 //updated: 20171105 1830-2055
-//updated: 20171111 1220-1500 ...
+//updated: 20171111 1220-1500
+//updated: 20171111 1605-1625 ...
 
 {todo:
 # MAIN:
@@ -105,7 +107,8 @@ unit c64;
 - old VICE_PAL was actually CCS64_PAL
 - final RGB color - get via one common call
 - fnt/fntb/logo/mob - fixed colors issue (can now set proper 4 colors)
-- hires/multi mode for font/logo/sprites - param exposed 
+- hires/multi mode for font/logo/sprites - param exposed
+- added support for Paint Magic (pc-ext: .pmg)
 - misc
 }
 
@@ -161,7 +164,8 @@ TAmicaBuff = array[0..32767] of byte;
 
 TC64Pallete = (C64S_PAL, CCS64_PAL, FRODO_PAL, GODOT_PAL, PC64_PAL, VICE_PAL);  
 
-TC64FileType = (C64_UNKNOWN, C64_KOALA, C64_WIGMORE, C64_RUNPAINT, C64_ISM,
+TC64FileType = (C64_UNKNOWN,
+                C64_KOALA, C64_WIGMORE, C64_RUNPAINT, C64_ISM, C64_PAINTMAGIC,
                 C64_HIRES, C64_HED, C64_DDL, C64_ISH,
                 C64_AMICA,
                 C64_LOGO, C64_FNT, C64_FNTB, C64_MOB, C64_MBF,
@@ -191,6 +195,7 @@ private
   procedure WIGMOREload(ca: TCanvas);
   procedure RUNPAINTload(ca: TCanvas);
   procedure IMGSYSload(ca: TCanvas);
+  procedure PAMAGload(ca: TCanvas);
   procedure HIRESload(ca: TCanvas);
   procedure HIRESloadHED(ca: TCanvas);
   procedure HIRESloadDDL(ca: TCanvas);
@@ -369,6 +374,9 @@ begin
   //Image System (Multicolor) (pc-ext: .ism;.ims) -- Alid.ism
   if (e = '.ISM') or (e = '.IMS') then result := C64_ISM;
 
+  //Paint Magic (pc-ext: .pmg) 
+  if (e = '.PMG') then result := C64_PAINTMAGIC;
+
   //Art Studio 1.0-1.1 (by OCP) (pc-ext: .aas;.art;.hpi)
   if (e = '.PIC') or (e = '.ART') or (e = '.OCP') or (e = '.AAS') or (e = '.HPI') then
     result := C64_HIRES;
@@ -393,6 +401,7 @@ begin
   //16x16 font (multi or hires)
   if e = '.FNB' then result := C64_FNTB;  //note: ext invented here
 
+  //sprites + sprite fonts hires/multi 
   if e = '.MOB' then result := C64_MOB;   //note: ext invented here
   if e = '.MBF' then result := C64_MBF;   //note: ext invented here
 
@@ -403,7 +412,9 @@ begin
   if (e = '.AFLI') or (e = '.AFL') (*or (e = '.HFC')*) then result := C64_AFLI;
 
   if (e = '.BFLI') then result := C64_BFLI;
+
   if (e = '.FFLI') then result := C64_FFLI;
+
   if (e = '.IFLI') or (e = '.IFL') (*or (e = '.GUN')*) then result := C64_IFLI;
 
 (*
@@ -418,7 +429,6 @@ $4338 - $471F 	Color RAM
 
 (* lookup more-to-implement folder for:
 Hires-Interlace v1.0 (Feniks) (pc-ext: .hlf) -- LOGOFENIKS.HLF
-Paint Magic (pc-ext: .pmg) -- UNIHORSE.PMG
 Drazlace (pc-ext: .drl) -- TESTPACK.Drl
 Hires FLI (by Crest) (pc-ext: .hfc) -- DEMOPIC.HFC
 Hires Manager (by Cosmos) (pc-ext: .him) -- logo.him / logo1.him
@@ -868,6 +878,35 @@ begin
   KOALAshow(koala, ca);
 end;
 
+(*
+Paint Magic (pc-ext: .pmg)
+load address: $3F8E - $63FF
+$3F8E - $3FFF 	Display Routine
+$4000 - $5F3F 	Bitmap
+$5F40 	Background
+$5F43 	Color RAM Byte
+$5F44 	Border
+$6000 - $63E7 	Screen RAM
+*)
+procedure TC64.PAMAGload(ca: TCanvas);
+var koala: MULTIdata;
+    g: word;
+    c, none: byte;
+begin
+  if not assigned(ca) then exit;
+  read(f, none, none);
+  for g := 0 to $3FFF-$3F8E-1+(1) do read(f, none); //display routine
+  for g := 0 to 7999 do read(f, koala.bitmap[g]);
+  read(f, koala.backGr);
+  read(f, none, none); //skip
+  read(f, c); //Color RAM Byte
+  read(f, none); //border - ignore
+  for g := 0 to 999 do koala.ink2[g] := c;
+  for g := 0 to $6000-$5F45-1 do read(f, none); //skip
+  for g := 0 to 999 do read(f, koala.ink1[g]);
+  KOALAshow(koala, ca);
+end;
+
 procedure TC64.HIRESload(ca: TCanvas);
 var HIRES: HIRESdata;
     g: word;
@@ -1281,10 +1320,11 @@ end;
 function TC64.LoadKoalaToBitmap(FileName: string; ca: TCanvas; mode: TC64FileType): integer;
 begin
   case mode of
-    C64_KOALA:    result := GenericLoader(FileName, KOALAload, ca, C64_KOALA);
-    C64_WIGMORE:  result := GenericLoader(FileName, WIGMOREload, ca, C64_WIGMORE);
-    C64_RUNPAINT: result := GenericLoader(FileName, RUNPAINTload, ca, C64_RUNPAINT);
-    C64_ISM:      result := GenericLoader(FileName, IMGSYSload, ca, C64_ISM);
+    C64_KOALA:      result := GenericLoader(FileName, KOALAload, ca, mode);
+    C64_WIGMORE:    result := GenericLoader(FileName, WIGMOREload, ca, mode);
+    C64_RUNPAINT:   result := GenericLoader(FileName, RUNPAINTload, ca, mode);
+    C64_ISM:        result := GenericLoader(FileName, IMGSYSload, ca, mode);
+    C64_PAINTMAGIC: result := GenericLoader(FileName, PAMAGload, ca, mode);
     else result := -1;
   end;
 end;
@@ -1343,11 +1383,12 @@ begin
   FLastError := 'Unknown format extension';
   mode := ExtMapper(ExtractFileExt(FileName));
   case mode of
-    C64_UNKNOWN:  result := -1;
+    C64_UNKNOWN:    result := -1;
     C64_KOALA,
     C64_WIGMORE,
     C64_RUNPAINT,
-    C64_ISM:      result := LoadKoalaToBitmap(FileName, ca, mode);
+    C64_ISM,
+    C64_PAINTMAGIC: result := LoadKoalaToBitmap(FileName, ca, mode);
     C64_HIRES,
     C64_HED,
     C64_DDL,
