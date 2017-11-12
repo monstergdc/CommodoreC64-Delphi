@@ -64,22 +64,22 @@ unit c64;
 //updated: 20171112 0100-0110
 //updated: 20171112 1155-1325
 //updated: 20171112 2045-2115
-//updated: 20171112 2200-2310 ...
+//updated: 20171112 2200-2330
 
 {todo:
 # MAIN:
 .- [!] logo - hires v multi - LOGOshow(hires)
 .- [!] more exotic formats / *FLI formats
 # NEXT:
-- commonize demo code d7/laz
 - fnt/fntb/mob - get given one/range
-- cleanup: MOBloadHires v MOBloadMulticolor -> one call
-- separate load and bmp/canvas pack (rerender w/o load)
+- separate load and canvas pack (rerender w/o load)
 - pack back to C64 formats and write (colormap, dither?)
 - recode one c64 fmt to another
 - cleanup - no FLI debug
 - cleanup: RLE unpack / amica unpack - rewrite clean
-# LATER:
+# LATER/MAYBE:
+- raw data output?
+- commonize demo code d7/laz
 - godot.jj - see why differs from congo rendering
 - prep standarized test files
 - more even more exotic formats
@@ -145,6 +145,7 @@ unit c64;
 - added support for Rainbow Painter (pc-ext: .rp)
 - added support for Doodle RLE packed .jj
 - added support for Koala Painter 2 RLE packed .gg
+- cleanup: MOBloadHires v MOBloadMulticolor -> one call
 }
 
 interface
@@ -266,8 +267,7 @@ private
   procedure LOGOload(ca: TCanvas);
   procedure FNTload(ca: TCanvas);
   procedure FNTBload(ca: TCanvas);
-  procedure MOBloadHires(ca: TCanvas);
-  procedure MOBloadMulticolor(ca: TCanvas);
+  procedure MOBload(ca: TCanvas);
   procedure FLIload(ca: TCanvas);  
 public
   constructor Create;
@@ -1082,7 +1082,6 @@ const TOP = high(TAmicaBuff);
 var data: MULTIdata;
     i_buff, o_buff: TAmicaBuff;
     i, g: word;
-    none: byte;
 begin
   if not assigned(ca) then exit;
   MULTICOLORclear(data);
@@ -1483,7 +1482,7 @@ begin
     FNTBshow(h*16-16, 48, data, ca, (60+h));
 end;
 
-procedure TC64.MOBloadHires(ca: TCanvas);
+procedure TC64.MOBload(ca: TCanvas);
 var mob: MOBdata;
     g: byte;
 begin
@@ -1506,38 +1505,20 @@ begin
   end;
   dec(mob.cnt);
 
-  for g := 1 to 13 do
-    if g <= mob.cnt then
-      hMOBshow(g*24-24, 0, mob, ca, (g)); //todo: more
-end;
-
-procedure TC64.MOBloadMulticolor(ca: TCanvas);
-var mob: MOBdata;
-    g: byte;
-begin
-  if not assigned(ca) then exit;
-
-  MOBclear(mob);
-
-  mob.cnt := 1;
-  read(f, g, g);
-  while not eof(f) do
+  if FAsHires then
   begin
-    for g := 0 to 63 do
-    begin
-      if not eof(f) then
-        read(f, mob.mob[mob.cnt, g])
-      else
-        mob.mob[mob.cnt, g] := 0;
-    end;
-    inc(mob.cnt)
+    for g := 1 to 13 do
+      if g <= mob.cnt then
+        hMOBshow(g*24-24, 0, mob, ca, (g)); //todo: more
+  end
+  else
+  begin
+    for g := 1 to 13 do
+      if g <= mob.cnt then
+        mMOBshow(g*24-24, 0, mob, ca, (g)); //todo: more
   end;
-  dec(mob.cnt);
-
-  for g := 1 to 13 do
-    if g <= mob.cnt then
-      mMOBshow(g*24-24, 0, mob, ca, (g)); //todo: more
 end;
+
 
 procedure TC64.FLIload(ca: TCanvas);
 var fli: FLIdata;
@@ -1761,13 +1742,8 @@ begin
 end;
 
 function TC64.LoadMobToBitmap(FileName: string; ca: TCanvas): integer;
-var loader: TC64Loader;
 begin
-  if FAsHires then
-    loader := MOBloadHires 
-  else
-    loader := MOBloadMulticolor;
-  result := GenericLoader(FileName, loader, ca, C64_MOB);
+  result := GenericLoader(FileName, MOBload, ca, C64_MOB);
 end;
 
 function TC64.LoadFliToBitmap(FileName: string; ca: TCanvas): integer;

@@ -3,11 +3,11 @@ Delphi/Lazarus class to manipulate Commodore C-64 graphics data
 with demo application, now crossplatform, tested under Windows and Linux (Debian).
 
 Supported formats include:
-- Koala Painter 2 (by AUDIO LIGHT) (pc-ext: .koa;.kla;.gg) -- .gg NOT YET
+- Koala Painter 2 (by AUDIO LIGHT) (pc-ext: .koa;.kla;.gg)
 - Wigmore Artist64 (by wigmore) (pc-ext: .a64)
 - Art Studio 1.0-1.1 (by OCP) (pc-ext: .aas;.art;.hpi)
 - Hi-Eddi (by Markt & Technik Verlag) (pc-ext: .hed)
-- Doodle (by OMNI) (pc-ext: .dd;.ddl;.jj) -- .jj NOT YET
+- Doodle (by OMNI) (pc-ext: .dd;.ddl;.jj)
 - RunPaint (pc-ext: .rpm)
 - Image System (Hires) (.ish)
 - Image System (Multicolor) (.ism;.ims)
