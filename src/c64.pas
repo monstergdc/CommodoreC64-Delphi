@@ -18,11 +18,11 @@ unit c64;
 //FLI code - loosely based on C code from C64Gfx by Pasi 'Albert' Ojala
 //------------------------------------------------------------------------------
 //Supported formats:
-//- Koala Painter 2 (by AUDIO LIGHT) (pc-ext: .koa;.kla;.gg) -- .gg NOT YET
+//- Koala Painter 2 (by AUDIO LIGHT) (pc-ext: .koa;.kla;.gg)
 //- Wigmore Artist64 (by wigmore) (pc-ext: .a64)
 //- Art Studio 1.0-1.1 (by OCP) (pc-ext: .aas;.art;.hpi)
 //- Hi-Eddi (by Markt & Technik Verlag) (pc-ext: .hed)
-//- Doodle (by OMNI) (pc-ext: .dd;.ddl;.jj) -- .jj NOT YET
+//- Doodle (by OMNI) (pc-ext: .dd;.ddl;.jj) 
 //- RunPaint (pc-ext: .rpm)
 //- Image System (Hires) (.ish)
 //- Image System (Multicolor) (pc-ext: .ism;.ims)
@@ -63,12 +63,13 @@ unit c64;
 //updated: 20171111 2130-2150
 //updated: 20171112 0100-0110
 //updated: 20171112 1155-1325
+//updated: 20171112 2045-2115
+//updated: 20171112 2200-2310 ...
 
 {todo:
 # MAIN:
 .- [!] logo - hires v multi - LOGOshow(hires)
 .- [!] more exotic formats / *FLI formats
-- [!] unpackers for .jj .gg and the like
 # NEXT:
 - commonize demo code d7/laz
 - fnt/fntb/mob - get given one/range
@@ -77,8 +78,11 @@ unit c64;
 - pack back to C64 formats and write (colormap, dither?)
 - recode one c64 fmt to another
 - cleanup - no FLI debug
+- cleanup: RLE unpack / amica unpack - rewrite clean
 # LATER:
+- godot.jj - see why differs from congo rendering
 - prep standarized test files
+- more even more exotic formats
 - mob - anim?
 - add misc limit checks
 - add deeper byte format detection
@@ -139,6 +143,8 @@ unit c64;
 - added palletes from HermIRES: C64HQ_PAL, OLDVICE_PAL, VICEDFLT_PAL
 - reorganized colormaps
 - added support for Rainbow Painter (pc-ext: .rp)
+- added support for Doodle RLE packed .jj
+- added support for Koala Painter 2 RLE packed .gg
 }
 
 interface
@@ -203,7 +209,9 @@ TC64Pallete = (C64S_PAL, CCS64_PAL, FRODO_PAL, GODOT_PAL, PC64_PAL, VICE_PAL,
 TC64FileType = (C64_UNKNOWN,
                 C64_KOALA, C64_WIGMORE, C64_RUNPAINT, C64_ISM, C64_PAINTMAGIC,
                 C64_ADVARTST, C64_CDU, C64_RAINBOW,
+                C64_KOALA_RLE, 
                 C64_HIRES, C64_HED, C64_DDL, C64_ISH,
+                C64_DDL_RLE,
                 C64_AMICA,
                 C64_LOGO, C64_FNT, C64_FNTB, C64_MOB, C64_MBF,
                 C64_FLI, C64_AFLI, C64_BFLI, C64_IFLI, C64_FFLI);
@@ -238,6 +246,7 @@ private
   procedure IFLIshow(ifli: IFLIdata; ca: TCanvas);
 
   procedure KOALAload(ca: TCanvas);
+  procedure KOALAload_RLE(ca: TCanvas);
   procedure WIGMOREload(ca: TCanvas);
   procedure RUNPAINTload(ca: TCanvas);
   procedure IMGSYSload(ca: TCanvas);
@@ -249,6 +258,7 @@ private
   procedure HIRESload(ca: TCanvas);
   procedure HIRESloadHED(ca: TCanvas);
   procedure HIRESloadDDL(ca: TCanvas);
+  procedure HIRESloadDDL_RLE(ca: TCanvas);
   procedure HIRESloadISH(ca: TCanvas);
   procedure AMICAload(ca: TCanvas);
   procedure AMICAunpack(i_buff: TAmicaBuff; var o_buff: TAmicaBuff);
@@ -352,6 +362,37 @@ const
 
 
 
+//Escape code $FE / 1 byte value / 1 byte count
+//todo: rewrite clean
+procedure unpackRLE(i_buff: TAmicaBuff; i_size: integer; var o_buff: TAmicaBuff);
+label unpack, hop;
+var i, x, a: byte;
+    _FBC, _FDE: integer;
+begin
+  _FBC := 0;
+  _FDE := 0+2;
+unpack:
+  a := i_buff[_FDE]; INC(_FDE);
+  if a = $FE then goto hop;
+  if _FBC >= sizeof(TAmicaBuff) then exit;
+  if _FDE >= i_size then exit;
+  o_buff[_FBC] := a; INC(_FBC);
+  goto unpack;
+hop:
+  x := i_buff[_FDE]; INC(_FDE);
+  a := i_buff[_FDE]; INC(_FDE);
+  if a = 0 then exit;
+  for i := 1 to a do
+  begin
+    if _FBC >= sizeof(TAmicaBuff) then exit;
+    if _FDE >= i_size then exit;
+    o_buff[_FBC] := x; INC(_FBC);
+  end;
+  goto unpack;
+end;
+
+//---
+
 constructor TC64.Create;
 begin
   inherited;
@@ -429,6 +470,7 @@ begin
 
   //Koala Painter 2 (by AUDIO LIGHT) (pc-ext: .koa;.kla;.gg)
   if (e = '.KOA') or (e = '.KLA') then result := C64_KOALA;
+  if (e = '.GG') then result := C64_KOALA_RLE;
 
   //Advanced Art Studio 2.0 (by OCP) (pc-ext: .ocp;.art)
   if (e = '.MPIC') then result := C64_ADVARTST; //note: we use .mpic ext, not .art or other
@@ -439,7 +481,7 @@ begin
   //RunPaint (pc-ext: .rpm)
   if (e = '.RPM') then result := C64_RUNPAINT;
 
-  //Image System (Multicolor) (pc-ext: .ism;.ims) -- Alid.ism
+  //Image System (Multicolor) (pc-ext: .ism;.ims)
   if (e = '.ISM') or (e = '.IMS') then result := C64_ISM;
 
   //Paint Magic (pc-ext: .pmg)
@@ -459,7 +501,8 @@ begin
   if (e = '.HED') then result := C64_HED;
 
   //Doodle (by OMNI) (pc-ext: .dd;.ddl;.jj)
-  if (e = '.DD') or (e = '.DDL') (*or (e = '.JJ')*) then result := C64_DDL;
+  if (e = '.DD') or (e = '.DDL') then result := C64_DDL;
+  if (e = '.JJ') then result := C64_DDL_RLE;
 
   //Image System (Hires) (pc-ext: .ish)
   if (e = '.ISH') then result := C64_ISH;
@@ -492,12 +535,67 @@ begin
   if (e = '.IFLI') or (e = '.IFL') (*or (e = '.GUN')*) then result := C64_IFLI;
 
 (* lookup more-to-implement folder for:
+
 Hires-Interlace v1.0 (Feniks) (pc-ext: .hlf) -- LOGOFENIKS.HLF
+load address: $4000 - $7f3f
+$2000 - $3f3f 	Bitmap 1
+$4400 - $47e7 	Screen RAM 1
+$4800 - $4be7 	Screen RAM 2
+$6000 - $7f3f 	Bitmap 2
+
 Drazlace (pc-ext: .drl) -- TESTPACK.Drl
-Hires FLI (by Crest) (pc-ext: .hfc) -- DEMOPIC.HFC
+"Crippled" Multicolor Interlaced
+2 x Multicolor Bitmap, shared Screen RAM and Color RAM
+load address: $5800 - $9f3f
+$5800 - $5be7 	Color RAM
+$5c00 - $5fe7 	Screen RAM
+$6000 - $7f3f 	Bitmap 1
+$7f40 	Background
+$7f42 	$d016 flag
+$8000 - $9f3f 	Bitmap 2
+
+Hires FLI (by Crest) (pc-ext: .hfc) -- DEMOPIC.HFC [AFLI]
+load address: $4000 - $7fff
+$4000 - $5f3f 	Bitmap
+$6000 - $7fe7 	Screen RAMs
+
 Hires Manager (by Cosmos) (pc-ext: .him) -- logo.him / logo1.him
+Unpacked format:
+load address: $4000 - $7ffe
+$4000 - $5f3f 	Bitmap
+$4001 	format marker, $ff = unpacked
+$6000 - $7fe7 	Screen RAMs
+Packed format:
+load address: $4000
+$4000 - $4001 	Pointer to end of packed data
+$4002 - $4003 	Pointer to end of unpacked data + 1 ($7ff2)
+
 Funpaint 2 (by Manfred Trenz) (pc-ext: .fp2;.fun) -- KATER.fp2 / appbug.fun / Valsary.fun / Viking.fun
+load address: $3ff0 - $c38b
+$3ff0 - $3fff 	'FUNPAINT (MT) ' NB: space
+$3ffe 	Flag: packed if non-zero
+$3fff 	Escape byte for unpacking
+$4000 - $5fe7 	Screen RAMs 1
+$6000 - $7f3f 	Bitmap 1
+$7f48 - $7fab 	100 x $d021 color
+$8000 - $83e7 	Color RAM
+$83e8 - $a3e7 	Screen RAMs 2
+$a3e8 - $c327 	Bitmap 2
+$c328 - $c38b 	100 x $d021 color
+RLE sequences are ESCAPE,COUNT,BYTE.
+
 Gunpaint (pc-ext: .gun,.ifl) -- Gunpaint.gun / MECENARI.gun
+load address: $4000 - $c340
+$4000 - $5fe7 	Screen RAMs 1
+$43e8 - $43f7 	header db 'GUNPAINT (JZ) '
+$6000 - $7f3f 	Bitmap 1
+$7f4f - $7fff 	177 x $d021 colors
+$8000 - $83e7 	Color RAM
+$8400 - $a3e7 	Screen RAMs 2
+$87e8 - $87fb 	20 x $d021 colors
+$a400 - $c33f 	Bitmap 2
+$c340 	???
+ 
 *)  
 end;
 
@@ -979,6 +1077,32 @@ begin
   MULTICOLORshow(data, ca);
 end;
 
+procedure TC64.KOALAload_RLE(ca: TCanvas);
+const TOP = high(TAmicaBuff);
+var data: MULTIdata;
+    i_buff, o_buff: TAmicaBuff;
+    i, g: word;
+    none: byte;
+begin
+  if not assigned(ca) then exit;
+  MULTICOLORclear(data);
+  g := 0;
+  while not eof(f) and (g < TOP+1) do
+  begin
+    read(f, i_buff[g]);
+    inc(g);
+  end;
+  for i := 0 to TOP do o_buff[i] := 0;
+  unpackRLE(i_buff, g, o_buff);
+
+  for g := 0 to 7999 do data.bitmap[g] := o_buff[g];  
+  for g := 0 to 999 do data.ink1[g] := o_buff[8000+g];
+  for g := 0 to 999 do data.ink2[g] := o_buff[8000+1000+g];
+  data.backGr := o_buff[8000+1000+1000];
+
+  MULTICOLORshow(data, ca);
+end;
+
 (*
 Wigmore Artist64 (by wigmore) (pc-ext: .a64)
 load address: $4000 - $67FF
@@ -1173,7 +1297,7 @@ begin
   HIRESclear(data);  
   read(f, none, none);
   for g := 0 to $3f3f-$2000-1 do read(f, data.bitmap[g]);
-  for g := 0 to $4000-$3f3f-1 do read(f, none);
+  for g := 0 to $4000-$3f3f-1 do read(f, none); //skip
   for g := 0 to $43e7-$4000-1 do read(f, data.ink[g]);
   HIRESshow(data, ca);
 end;
@@ -1189,7 +1313,28 @@ begin
   read(f, none, none);
   for g := 0 to 999 do read(f, data.ink[g]);
   for g := 0 to 7+8+8 do read(f, none); //but why???
-  for g := 0 to $7f3f-$6000-1+1 do read(f, data.bitmap[g]);
+  for g := 0 to $7f3f-$6000 do read(f, data.bitmap[g]);
+  HIRESshow(data, ca);
+end;
+
+procedure TC64.HIRESloadDDL_RLE(ca: TCanvas);
+const TOP = high(TAmicaBuff);
+var data: HIRESdata;
+    i_buff, o_buff: TAmicaBuff;
+    i, g: word;
+begin
+  if not assigned(ca) then exit;
+  HIRESclear(data);
+  g := 0;
+  while not eof(f) and (g < TOP+1) do
+  begin
+    read(f, i_buff[g]);
+    inc(g);
+  end;
+  for i := 0 to TOP do o_buff[i] := 0;
+  unpackRLE(i_buff, g, o_buff);
+  for g := 0 to 999 do data.ink[g] := o_buff[g];
+  for g := 0 to 7999 do data.bitmap[g] := o_buff[1000+(7+8+8+1)+g];
   HIRESshow(data, ca);
 end;
 
@@ -1218,15 +1363,16 @@ procedure TC64.AMICAload(ca: TCanvas);
 var koala: MULTIdata;
     i_buff, o_buff: TAmicaBuff;
     b, i: integer;
-    c: byte;
+//    c: byte;
 begin
   if not assigned(ca) then exit;
 
   b := 0;
   while not eof(f) and (b < 32768) do
   begin
-    read(f, c);
-    i_buff[b] := c;
+//    read(f, c);
+//    i_buff[b] := c;
+    read(f, i_buff[b]);
     inc(b);
   end;
 
@@ -1577,6 +1723,7 @@ begin
     C64_ADVARTST:   result := GenericLoader(FileName, ADVARTSTload, ca, mode);
     C64_CDU:        result := GenericLoader(FileName, CDUload, ca, mode);
     C64_RAINBOW:    result := GenericLoader(FileName, RPload, ca, mode);
+    C64_KOALA_RLE:  result := GenericLoader(FileName, KOALAload_RLE, ca, mode);
     else result := -1;
   end;
 end;
@@ -1584,10 +1731,11 @@ end;
 function TC64.LoadHiresToBitmap(FileName: string; ca: TCanvas; mode: TC64FileType): integer;
 begin
   case mode of
-    C64_HIRES : result := GenericLoader(FileName, HIRESload, ca, mode);
-    C64_HED: result := GenericLoader(FileName, HIRESloadHED, ca, mode);
-    C64_DDL: result := GenericLoader(FileName, HIRESloadDDL, ca, mode);
-    C64_ISH: result := GenericLoader(FileName, HIRESloadISH, ca, mode);
+    C64_HIRES:   result := GenericLoader(FileName, HIRESload, ca, mode);
+    C64_HED:     result := GenericLoader(FileName, HIRESloadHED, ca, mode);
+    C64_DDL:     result := GenericLoader(FileName, HIRESloadDDL, ca, mode);
+    C64_ISH:     result := GenericLoader(FileName, HIRESloadISH, ca, mode);
+    C64_DDL_RLE: result := GenericLoader(FileName, HIRESloadDDL_RLE, ca, mode);
     else result := -1;
   end;
 end;
@@ -1637,6 +1785,7 @@ begin
   case mode of
     C64_UNKNOWN:  result := -1;
     C64_KOALA,
+    C64_KOALA_RLE,
     C64_WIGMORE,
     C64_RUNPAINT,
     C64_ISM,
@@ -1647,6 +1796,7 @@ begin
     C64_HIRES,
     C64_HED,
     C64_DDL,
+    C64_DDL_RLE,
     C64_ISH:      result := LoadHiresToBitmap(FileName, ca, mode);
     C64_AMICA:    result := LoadAmicaToBitmap(FileName, ca);
     C64_LOGO:     result := LoadLogoToBitmap(FileName, ca);

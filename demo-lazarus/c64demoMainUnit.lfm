@@ -31,7 +31,7 @@ object Form1: TForm1
   object BitBtnSave: TBitBtn
     Left = 432
     Height = 25
-    Top = 232
+    Top = 224
     Width = 75
     Caption = 'Save img...'
     OnClick = BitBtnSaveClick
@@ -40,7 +40,7 @@ object Form1: TForm1
   object BitBtnAbout: TBitBtn
     Left = 512
     Height = 25
-    Top = 232
+    Top = 224
     Width = 75
     Caption = 'About'
     OnClick = BitBtnAboutClick
@@ -49,7 +49,7 @@ object Form1: TForm1
   object BitBtnLoad: TBitBtn
     Left = 352
     Height = 25
-    Top = 232
+    Top = 224
     Width = 75
     Caption = 'Load...'
     OnClick = BitBtnLoadClick
@@ -57,11 +57,11 @@ object Form1: TForm1
   end
   object GroupBox1: TGroupBox
     Left = 344
-    Height = 217
+    Height = 208
     Top = 8
     Width = 257
     Caption = 'Predefined quick examples'
-    ClientHeight = 199
+    ClientHeight = 190
     ClientWidth = 253
     TabOrder = 3
     object BitBtnKOALA: TBitBtn
@@ -213,8 +213,8 @@ object Form1: TForm1
   end
   object RadioGroup1: TRadioGroup
     Left = 352
-    Height = 145
-    Top = 280
+    Height = 169
+    Top = 256
     Width = 97
     AutoFill = True
     Caption = 'Palette'
@@ -225,7 +225,7 @@ object Form1: TForm1
     ChildSizing.ShrinkVertical = crsScaleChilds
     ChildSizing.Layout = cclLeftToRightThenTopToBottom
     ChildSizing.ControlsPerLine = 1
-    ClientHeight = 127
+    ClientHeight = 151
     ClientWidth = 93
     ItemIndex = 0
     Items.Strings = (
@@ -235,17 +235,20 @@ object Form1: TForm1
       'GODOT'
       'PC64'
       'VICE'
+      'C64HQ'
+      'OLDVICE'
+      'VICEDFLT'
     )
     OnClick = RadioGroup1Click
     TabOrder = 4
   end
   object GroupBox2: TGroupBox
     Left = 456
-    Height = 145
-    Top = 280
+    Height = 169
+    Top = 256
     Width = 145
     Caption = 'Four colors + mode'
-    ClientHeight = 127
+    ClientHeight = 151
     ClientWidth = 141
     TabOrder = 5
     object Label2: TLabel
@@ -317,9 +320,9 @@ object Form1: TForm1
       TabOrder = 3
     end
     object cbHires: TCheckBox
-      Left = 6
+      Left = 8
       Height = 17
-      Top = 106
+      Top = 112
       Width = 65
       Caption = 'As Hires?'
       TabOrder = 4
