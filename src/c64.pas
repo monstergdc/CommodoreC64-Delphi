@@ -5,8 +5,8 @@ unit c64;
 {$ENDIF}
 
 //------------------------------------------------------------------------------
-//Commodore C-64 GFX files manipulation Delphi (7+) / Lazarus class, v1.38
-//Crossplatform (Delphi 7 / Lazarus on Win32, Lazarus on Linux)
+//Commodore C-64 GFX files manipulation Delphi (7+) / Lazarus class, v1.39
+//Crossplatform (Delphi 7+ / Lazarus on Win32, Lazarus on Linux)
 //(c)1994, 1995, 2009-2011, 2017 Noniewicz.com, Jakub Noniewicz aka MoNsTeR/GDC
 //E-mail: monster@Noniewicz.com
 //WWW: http://www.Noniewicz.com
@@ -36,6 +36,7 @@ unit c64;
 //- Paint Magic (pc-ext: .pmg)
 //- Advanced Art Studio 2.0 (by OCP) (pc-ext: .ocp;.art)
 //- CDU-Paint (pc-ext: .cdu)
+//- Rainbow Painter (pc-ext: .rp)
 //------------------------------------------------------------------------------
 //History:
 //created: somewhere in 1994-1995
@@ -60,13 +61,16 @@ unit c64;
 //updated: 20171111 1605-1800
 //updated: 20171111 1935-2050
 //updated: 20171111 2130-2150
+//updated: 20171112 0100-0110
+//updated: 20171112 1155-1325
 
 {todo:
 # MAIN:
 .- [!] logo - hires v multi - LOGOshow(hires)
-.- [!] more exotic formats / *FLI formats / rainbowpainter.rp
+.- [!] more exotic formats / *FLI formats
 - [!] unpackers for .jj .gg and the like
 # NEXT:
+- commonize demo code d7/laz
 - fnt/fntb/mob - get given one/range
 - cleanup: MOBloadHires v MOBloadMulticolor -> one call
 - separate load and bmp/canvas pack (rerender w/o load)
@@ -74,11 +78,13 @@ unit c64;
 - recode one c64 fmt to another
 - cleanup - no FLI debug
 # LATER:
+- prep standarized test files
 - mob - anim?
 - add misc limit checks
 - add deeper byte format detection
 - also open source c64pas app
 - ZX analogue (6144/768/6912)?
+- even go xnView or recoil ?
 - C code version (so more portable) ?
 }
 
@@ -129,6 +135,10 @@ unit c64;
 - fnt/fntb - hires/multi - proper
 - MULTICOLORclear, HIRESclear, LOGOclear, FNTclear, FNTBclear MOBclear FLIclear IFLIclear
 - misc
+# v1.39
+- added palletes from HermIRES: C64HQ_PAL, OLDVICE_PAL, VICEDFLT_PAL
+- reorganized colormaps
+- added support for Rainbow Painter (pc-ext: .rp)
 }
 
 interface
@@ -187,11 +197,12 @@ TC64Loader = procedure(ca: TCanvas) of object;
 
 TAmicaBuff = array[0..32767] of byte;
 
-TC64Pallete = (C64S_PAL, CCS64_PAL, FRODO_PAL, GODOT_PAL, PC64_PAL, VICE_PAL);  
+TC64Pallete = (C64S_PAL, CCS64_PAL, FRODO_PAL, GODOT_PAL, PC64_PAL, VICE_PAL,
+               C64HQ_PAL, OLDVICE_PAL, VICEDFLT_PAL);
 
 TC64FileType = (C64_UNKNOWN,
                 C64_KOALA, C64_WIGMORE, C64_RUNPAINT, C64_ISM, C64_PAINTMAGIC,
-                C64_ADVARTST, C64_CDU,
+                C64_ADVARTST, C64_CDU, C64_RAINBOW,
                 C64_HIRES, C64_HED, C64_DDL, C64_ISH,
                 C64_AMICA,
                 C64_LOGO, C64_FNT, C64_FNTB, C64_MOB, C64_MBF,
@@ -233,6 +244,7 @@ private
   procedure PAMAGload(ca: TCanvas);
   procedure ADVARTSTload(ca: TCanvas);
   procedure CDUload(ca: TCanvas);
+  procedure RPload(ca: TCanvas);
 
   procedure HIRESload(ca: TCanvas);
   procedure HIRESloadHED(ca: TCanvas);
@@ -250,6 +262,7 @@ private
 public
   constructor Create;
   function GetC64Color(index: integer): TColor;
+  function GetC64Color8(index, rgb: integer): byte;
   function GetC64ColorR(index: integer): byte;
   function GetC64ColorG(index: integer): byte;
   function GetC64ColorB(index: integer): byte;
@@ -280,34 +293,59 @@ const
 //orange,brown(lt.red),pink,dk.gray,gray,lt.green,lt.blue,lt.gray
 
 //VICE pallete c64s.vpl
-  c64s_r: array[0..15] of byte = ($00,$fc,$a8,$54,$a8,$00,$00,$fc, $a8,$80,$fc,$54,$80,$54,$54,$a8);
-  c64s_g: array[0..15] of byte = ($00,$fc,$00,$fc,$00,$a8,$00,$fc, $54,$2c,$54,$54,$80,$fc,$54,$a8);
-  c64s_b: array[0..15] of byte = ($00,$fc,$00,$fc,$a8,$00,$a8,$00, $00,$00,$54,$54,$80,$54,$fc,$a8);
+  c64s_rgb: array[0..2, 0..15] of byte = (
+      ($00,$fc,$a8,$54,$a8,$00,$00,$fc, $a8,$80,$fc,$54,$80,$54,$54,$a8),
+      ($00,$fc,$00,$fc,$00,$a8,$00,$fc, $54,$2c,$54,$54,$80,$fc,$54,$a8),
+      ($00,$fc,$00,$fc,$a8,$00,$a8,$00, $00,$00,$54,$54,$80,$54,$fc,$a8));
 
 //VICE pallete ccs64.vpl
-  ccs64_r: array[0..15] of byte = ($00,$ff,$e0,$60,$e0,$40,$40,$ff, $e0,$9c,$ff,$54,$88,$a0,$a0,$c0);
-  ccs64_g: array[0..15] of byte = ($00,$ff,$40,$ff,$60,$e0,$40,$ff, $a0,$74,$a0,$54,$88,$ff,$a0,$c0);
-  ccs64_b: array[0..15] of byte = ($00,$ff,$40,$ff,$e0,$40,$e0,$40, $40,$48,$a0,$54,$88,$a0,$ff,$c0);
+  ccs64_rgb: array[0..2, 0..15] of byte = (
+      ($00,$ff,$e0,$60,$e0,$40,$40,$ff, $e0,$9c,$ff,$54,$88,$a0,$a0,$c0),
+      ($00,$ff,$40,$ff,$60,$e0,$40,$ff, $a0,$74,$a0,$54,$88,$ff,$a0,$c0),
+      ($00,$ff,$40,$ff,$e0,$40,$e0,$40, $40,$48,$a0,$54,$88,$a0,$ff,$c0));
 
 //VICE pallete frodo.vpl
-  frodo_r: array[0..15] of byte = ($00,$ff,$cc,$00,$ff,$00,$00,$ff, $ff,$88,$ff,$44,$88,$88,$88,$cc);
-  frodo_g: array[0..15] of byte = ($00,$ff,$00,$ff,$00,$cc,$00,$ff, $88,$44,$88,$44,$88,$ff,$88,$cc);
-  frodo_b: array[0..15] of byte = ($00,$ff,$00,$cc,$ff,$00,$cc,$00, $00,$00,$88,$44,$88,$88,$ff,$cc);
+  frodo_rgb: array[0..2, 0..15] of byte = (
+      ($00,$ff,$cc,$00,$ff,$00,$00,$ff, $ff,$88,$ff,$44,$88,$88,$88,$cc),
+      ($00,$ff,$00,$ff,$00,$cc,$00,$ff, $88,$44,$88,$44,$88,$ff,$88,$cc),
+      ($00,$ff,$00,$cc,$ff,$00,$cc,$00, $00,$00,$88,$44,$88,$88,$ff,$cc));
 
 //VICE pallete godot.vpl
-  godot_r: array[0..15] of byte = ($00,$ff,$88,$aa,$cc,$00,$00,$ee, $dd,$66,$fe,$33,$77,$aa,$00,$bb);
-  godot_g: array[0..15] of byte = ($00,$ff,$00,$ff,$44,$cc,$00,$ee, $88,$44,$77,$33,$77,$ff,$88,$bb);
-  godot_b: array[0..15] of byte = ($00,$ff,$00,$ee,$cc,$55,$aa,$77, $55,$00,$77,$33,$77,$66,$ff,$bb);
+  godot_rgb: array[0..2, 0..15] of byte = (
+      ($00,$ff,$88,$aa,$cc,$00,$00,$ee, $dd,$66,$fe,$33,$77,$aa,$00,$bb),
+      ($00,$ff,$00,$ff,$44,$cc,$00,$ee, $88,$44,$77,$33,$77,$ff,$88,$bb),
+      ($00,$ff,$00,$ee,$cc,$55,$aa,$77, $55,$00,$77,$33,$77,$66,$ff,$bb));
 
-//VICE pallete pc64.vpl                                                                     
-  pc64_r: array[0..15] of byte = ($21,$ff,$b5,$73,$b5,$21,$21,$ff, $b5,$94,$ff,$73,$94,$73,$73,$b5);
-  pc64_g: array[0..15] of byte = ($21,$ff,$21,$ff,$21,$b5,$21,$ff, $73,$42,$73,$73,$94,$ff,$73,$b5);
-  pc64_b: array[0..15] of byte = ($21,$ff,$21,$ff,$b5,$21,$b5,$21, $21,$21,$73,$73,$94,$73,$ff,$b5);
+//VICE pallete pc64.vpl
+  pc64_rgb: array[0..2, 0..15] of byte = (
+      ($21,$ff,$b5,$73,$b5,$21,$21,$ff, $b5,$94,$ff,$73,$94,$73,$73,$b5),
+      ($21,$ff,$21,$ff,$21,$b5,$21,$ff, $73,$42,$73,$73,$94,$ff,$73,$b5),
+      ($21,$ff,$21,$ff,$b5,$21,$b5,$21, $21,$21,$73,$73,$94,$73,$ff,$b5));
 
-//VICE pallete vice.vpl                                                                     
-  vice_r: array[0..15] of byte = ($00,$ff,$68,$70,$6f,$58,$35,$b8, $6f,$43,$9a,$44,$6c,$9a,$6c,$95);
-  vice_g: array[0..15] of byte = ($00,$ff,$37,$a4,$3d,$8d,$28,$c7, $4f,$39,$67,$44,$6c,$d2,$5e,$95);
-  vice_b: array[0..15] of byte = ($00,$ff,$2b,$b2,$86,$43,$79,$6f, $25,$00,$59,$44,$6c,$84,$b5,$95);
+//VICE pallete vice.vpl (pepto.vpl seems the same)
+  vice_rgb: array[0..2, 0..15] of byte = (
+      ($00,$ff,$68,$70,$6f,$58,$35,$b8, $6f,$43,$9a,$44,$6c,$9a,$6c,$95),
+      ($00,$ff,$37,$a4,$3d,$8d,$28,$c7, $4f,$39,$67,$44,$6c,$d2,$5e,$95),
+      ($00,$ff,$2b,$b2,$86,$43,$79,$6f, $25,$00,$59,$44,$6c,$84,$b5,$95));
+
+//VICE pallete c64hq.vpl (from HermIRES-1.29)
+  c64hq_rgb: array[0..2, 0..15] of byte = (
+      ($0a,$ff,$85,$65,$a7,$4d,$1a,$eb, $a9,$44,$d2,$46,$8b,$8e,$4d,$ba),
+      ($0a,$f8,$1f,$cd,$3b,$ab,$0c,$e3, $4b,$1e,$80,$46,$8b,$f6,$91,$ba),
+      ($0a,$ff,$02,$a8,$9f,$19,$92,$53, $02,$00,$75,$46,$8b,$8e,$d1,$ba));
+
+//VICE pallete older-vice.vpl (from HermIRES-1.29)
+  oldvice_rgb: array[0..2, 0..15] of byte = (
+      ($0a,$ff,$8f,$a1,$96,$86,$4b,$f3, $9b,$64,$cb,$64,$96,$d6,$93,$c9),
+      ($0a,$f8,$53,$d9,$5f,$bc,$40,$fd, $72,$52,$92,$64,$96,$ff,$89,$c9),
+      ($0a,$ff,$4b,$e0,$b4,$67,$9e,$a6, $44,$00,$8b,$64,$96,$b8,$e1,$c9));
+
+//VICE pallete vice-default.vpl (from HermIRES-1.29)
+  vicedflt_rgb: array[0..2, 0..15] of byte = (
+      ($00,$fd,$be,$30,$b4,$1f,$21,$df, $b8,$6a,$fe,$42,$70,$59,$5f,$a4),
+      ($00,$fe,$1a,$e6,$1a,$d2,$1b,$f6, $41,$33,$4a,$45,$74,$fe,$53,$a7),
+      ($00,$fc,$24,$c6,$e2,$1e,$ae,$0a, $04,$04,$57,$40,$6f,$59,$fe,$a2));
+
 
 
   pow: array[0..7] of byte = (1, 2, 4, 8, 16, 32, 64, 128);
@@ -328,62 +366,51 @@ begin
     result := 0
   else
     case FPalette of
-      C64S_PAL:  result := RGB(c64s_r[index], c64s_g[index], c64s_b[index]);
-      CCS64_PAL: result := RGB(ccs64_r[index], ccs64_g[index], ccs64_b[index]);
-      FRODO_PAL: result := RGB(frodo_r[index], frodo_g[index], frodo_b[index]);
-      GODOT_PAL: result := RGB(godot_r[index], godot_g[index], godot_b[index]);
-      PC64_PAL:  result := RGB(pc64_r[index], pc64_g[index], pc64_b[index]);
-      VICE_PAL:  result := RGB(vice_r[index], vice_g[index], vice_b[index]);
+      C64S_PAL:     result := RGB(c64s_rgb[0, index], c64s_rgb[1, index], c64s_rgb[2, index]);
+      CCS64_PAL:    result := RGB(ccs64_rgb[0, index], ccs64_rgb[1, index], ccs64_rgb[2, index]);
+      FRODO_PAL:    result := RGB(frodo_rgb[0, index], frodo_rgb[1, index], frodo_rgb[2, index]);
+      GODOT_PAL:    result := RGB(godot_rgb[0, index], godot_rgb[1, index], godot_rgb[2, index]);
+      PC64_PAL:     result := RGB(pc64_rgb[0, index], pc64_rgb[1, index], pc64_rgb[2, index]);
+      VICE_PAL:     result := RGB(vice_rgb[0, index], vice_rgb[1, index], vice_rgb[2, index]);
+      C64HQ_PAL:    result := RGB(c64hq_rgb[0, index], c64hq_rgb[1, index], c64hq_rgb[2, index]);
+      OLDVICE_PAL:  result := RGB(oldvice_rgb[0, index], oldvice_rgb[1, index], oldvice_rgb[2, index]);
+      VICEDFLT_PAL: result := RGB(vicedflt_rgb[0, index], vicedflt_rgb[1, index], vicedflt_rgb[2, index]);
+      else result := 0;
+    end;
+end;
+
+function TC64.GetC64Color8(index, rgb: integer): byte;
+begin
+  if not (index in [0..15]) or not (rgb in [0..2]) then
+    result := 0
+  else
+    case FPalette of
+      C64S_PAL:     result := c64s_rgb[rgb, index];
+      CCS64_PAL:    result := ccs64_rgb[rgb, index];
+      FRODO_PAL:    result := frodo_rgb[rgb, index];
+      GODOT_PAL:    result := godot_rgb[rgb, index];
+      PC64_PAL:     result := pc64_rgb[rgb, index];
+      VICE_PAL:     result := vice_rgb[rgb, index];
+      C64HQ_PAL:    result := c64hq_rgb[rgb, index];
+      OLDVICE_PAL:  result := oldvice_rgb[rgb, index];
+      VICEDFLT_PAL: result := vicedflt_rgb[rgb, index];
       else result := 0;
     end;
 end;
 
 function TC64.GetC64ColorR(index: integer): byte;
 begin
-  if not (index in [0..15]) then
-    result := 0
-  else
-    case FPalette of
-      C64S_PAL:  result := c64s_r[index];
-      CCS64_PAL: result := ccs64_r[index];
-      FRODO_PAL: result := frodo_r[index];
-      GODOT_PAL: result := godot_r[index];
-      PC64_PAL:  result := pc64_r[index];
-      VICE_PAL:  result := vice_r[index];
-      else result := 0;
-    end;
+  result := GetC64Color8(index, 0);
 end;
 
 function TC64.GetC64ColorG(index: integer): byte;
 begin
-  if not (index in [0..15]) then
-    result := 0
-  else
-    case FPalette of
-      C64S_PAL:  result := c64s_g[index];
-      CCS64_PAL: result := ccs64_g[index];
-      FRODO_PAL: result := frodo_g[index];
-      GODOT_PAL: result := godot_g[index];
-      PC64_PAL:  result := pc64_g[index];
-      VICE_PAL:  result := vice_g[index];
-      else result := 0;
-    end;
+  result := GetC64Color8(index, 1);
 end;
 
 function TC64.GetC64ColorB(index: integer): byte;
 begin
-  if not (index in [0..15]) then
-    result := 0
-  else
-    case FPalette of
-      C64S_PAL:  result := c64s_b[index];
-      CCS64_PAL: result := ccs64_b[index];
-      FRODO_PAL: result := frodo_b[index];
-      GODOT_PAL: result := godot_b[index];
-      PC64_PAL:  result := pc64_b[index];
-      VICE_PAL:  result := vice_b[index];
-      else result := 0;
-    end;
+  result := GetC64Color8(index, 2);
 end;
 
 procedure TC64.Set4Colors(color0, color1, color2, color3: byte);
@@ -420,6 +447,9 @@ begin
 
   //CDU-Paint (pc-ext: .cdu)
   if (e = '.CDU') then result := C64_CDU;
+
+  //Rainbow Paiter (pc-ext: .rp)
+  if (e = '.RP') then result := C64_RAINBOW;
 
   //Art Studio 1.0-1.1 (by OCP) (pc-ext: .aas;.art;.hpi)
   if (e = '.PIC') or (e = '.ART') or (e = '.OCP') or (e = '.AAS') or (e = '.HPI') then
@@ -1093,13 +1123,30 @@ var data: MULTIdata;
     none: byte;
 begin
   if not assigned(ca) then exit;
-  MULTICOLORclear(data);  
+  MULTICOLORclear(data);
   read(f, none, none);
-  for g := 0 to 273-1 do read(f, none); //skip display routine
+  for g := 0 to 272 do read(f, none); //skip display routine
   for g := 0 to 7999 do read(f, data.bitmap[g]);
   for g := 0 to 999 do read(f, data.ink1[g]);
   for g := 0 to 999 do read(f, data.ink2[g]);
   read(f, data.backGr);
+  MULTICOLORshow(data, ca);
+end;
+
+procedure TC64.RPload(ca: TCanvas);
+var data: MULTIdata;
+    g: word;
+    none: byte;
+begin
+  if not assigned(ca) then exit;
+  MULTICOLORclear(data);
+  read(f, none, none);
+  for g := 0 to 999 do read(f, data.ink1[g]);
+  for g := 0 to 23 do read(f, none); //skip
+  for g := 0 to 7999 do read(f, data.bitmap[g]);
+  for g := 0 to 191 do read(f, none); //skip
+  for g := 0 to 999 do read(f, data.ink2[g]);
+  data.backGr := 0; //?
   MULTICOLORshow(data, ca);
 end;
 
@@ -1529,6 +1576,7 @@ begin
     C64_PAINTMAGIC: result := GenericLoader(FileName, PAMAGload, ca, mode);
     C64_ADVARTST:   result := GenericLoader(FileName, ADVARTSTload, ca, mode);
     C64_CDU:        result := GenericLoader(FileName, CDUload, ca, mode);
+    C64_RAINBOW:    result := GenericLoader(FileName, RPload, ca, mode);
     else result := -1;
   end;
 end;
@@ -1594,7 +1642,8 @@ begin
     C64_ISM,
     C64_PAINTMAGIC,
     C64_ADVARTST,
-    C64_CDU:      result := LoadMulticolorToBitmap(FileName, ca, mode);
+    C64_CDU,
+    C64_RAINBOW:  result := LoadMulticolorToBitmap(FileName, ca, mode);
     C64_HIRES,
     C64_HED,
     C64_DDL,

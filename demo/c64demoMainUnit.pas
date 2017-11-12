@@ -325,6 +325,9 @@ begin
     3: c64.Palette := GODOT_PAL;
     4: c64.Palette := PC64_PAL;
     5: c64.Palette := VICE_PAL;
+    6: c64.Palette := C64HQ_PAL;
+    7: c64.Palette := OLDVICE_PAL;
+    8: c64.Palette := VICEDFLT_PAL;
   end;
 end;
 

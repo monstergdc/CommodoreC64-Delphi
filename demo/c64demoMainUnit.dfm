@@ -31,7 +31,7 @@ object Form1: TForm1
   end
   object BitBtnSave: TBitBtn
     Left = 432
-    Top = 232
+    Top = 224
     Width = 75
     Height = 25
     Caption = 'Save img...'
@@ -40,7 +40,7 @@ object Form1: TForm1
   end
   object BitBtnAbout: TBitBtn
     Left = 512
-    Top = 232
+    Top = 224
     Width = 75
     Height = 25
     Caption = 'About'
@@ -49,7 +49,7 @@ object Form1: TForm1
   end
   object BitBtnLoad: TBitBtn
     Left = 352
-    Top = 232
+    Top = 224
     Width = 75
     Height = 25
     Caption = 'Load...'
@@ -60,7 +60,7 @@ object Form1: TForm1
     Left = 344
     Top = 8
     Width = 257
-    Height = 217
+    Height = 209
     Caption = 'Predefined quick examples'
     TabOrder = 3
     object BitBtnKOALA: TBitBtn
@@ -212,9 +212,9 @@ object Form1: TForm1
   end
   object RadioGroup1: TRadioGroup
     Left = 352
-    Top = 280
+    Top = 256
     Width = 97
-    Height = 145
+    Height = 169
     Caption = 'Palette'
     ItemIndex = 0
     Items.Strings = (
@@ -223,15 +223,18 @@ object Form1: TForm1
       'FRODO'
       'GODOT'
       'PC64'
-      'VICE')
+      'VICE'
+      'C64HQ'
+      'OLDVICE'
+      'VICEDFLT')
     TabOrder = 4
     OnClick = RadioGroup1Click
   end
   object GroupBox2: TGroupBox
     Left = 456
-    Top = 280
+    Top = 256
     Width = 145
-    Height = 145
+    Height = 169
     Caption = 'Four colors + mode'
     TabOrder = 5
     object Label2: TLabel
@@ -300,7 +303,7 @@ object Form1: TForm1
     end
     object cbHires: TCheckBox
       Left = 8
-      Top = 120
+      Top = 128
       Width = 97
       Height = 17
       Caption = 'As Hires?'
