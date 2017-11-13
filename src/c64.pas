@@ -67,35 +67,35 @@ unit c64;
 //updated: 20171112 2045-2115
 //updated: 20171112 2200-2330
 //updated: 20171113 1000-1045
+//updated: 20171113 2255-2350
 
 {todo:
 # MAIN:
-.- [!] logo - hires v multi - LOGOshow(hires)
-.- [!] more exotic formats / *FLI formats
+.- [!] more *FLI formats
+.- cleanup: RLE unpack / amica unpack - rewrite clean
+.- logo - hires v multi - LOGOshow(hires)
 # NEXT:
-- fnt/fntb/mob - get given one/range
+- more even more exotic formats
+- fnt/fntb/mob - get given one/range | also output really all
 - separate load and canvas pack (rerender w/o load)
-- pack back to C64 formats and write (colormap, dither?)
-- recode one c64 fmt to another
-- cleanup - no FLI debug
-- cleanup: RLE unpack / amica unpack - rewrite clean
+- [!] pack back to C64 formats and write (colormap, dither?)
+- [!] recode one c64 fmt to another (m-m, h-h, h*m-*m*h)
 # LATER/MAYBE:
 - raw data output?
 - commonize demo code d7/laz
 - godot.jj - see why differs from congo rendering
-- prep standarized test files
-- more even more exotic formats
+- prep standarized test files (so all are the same)
 - mob - anim?
 - add misc limit checks
 - add deeper byte format detection
 - ZX analogue (6144/768/6912)?
-- even go xnView or recoil ?
+- even go xnView / recoil / congo ?
 - C code version (so more portable) ?
 }
 
 {CHANGELOG:
 # v1.00
-- base stuff, old version in Turbo Pascal, so ancient
+- base stuff, ancient version in Turbo Pascal (koala, amica, hires, sprites, fonts, logos)
 # v1.10
 - slightly rewritten for Delphi (then named mob64.pas)
 # v1.20
@@ -268,8 +268,7 @@ private
   procedure HIRESloadDDL_RLE(ca: TCanvas);
   procedure HIRESloadISH(ca: TCanvas);
   procedure AMICAload(ca: TCanvas);
-  procedure AMICAunpack(i_buff: TAmicaBuff; var o_buff: TAmicaBuff);
-  procedure AMICA2KOALA(o_buff: TAmicaBuff; var koala: MULTIdata);
+  procedure AMICAunpack(i_buff: TAmicaBuff; var o_buff: TAmicaBuff; o_size: integer);
   procedure LOGOload(ca: TCanvas);
   procedure FNTload(ca: TCanvas);
   procedure FNTBload(ca: TCanvas);
@@ -371,32 +370,31 @@ const
 
 //RLE: Escape code / 1 byte value / 1 byte count
 //todo: rewrite clean
-procedure unpackRLE(esc: byte; i_buff: TAmicaBuff; i_size: integer; var o_buff: TAmicaBuff);
-label unpack;
+procedure unpackRLE_V_C(esc: byte; i_buff: TAmicaBuff; i_size: integer; var o_buff: TAmicaBuff; o_size: integer);
 var i, x, a: byte;
     _FBC, _FDE: integer;
 begin
   _FBC := 0;
-  _FDE := 0+2; //skip load addr
-unpack:
-  a := i_buff[_FDE]; INC(_FDE);
-  if a = esc then
-  begin
-    x := i_buff[_FDE]; INC(_FDE);
+  _FDE := 0+2; //skip load addr (2 bytes)
+  repeat
     a := i_buff[_FDE]; INC(_FDE);
-    if a = 0 then exit;
-    for i := 1 to a do
+    if a = esc then
     begin
-      if (_FBC >= sizeof(TAmicaBuff)) or (_FDE >= i_size) then exit;
-      o_buff[_FBC] := x; INC(_FBC);
+      x := i_buff[_FDE]; INC(_FDE);
+      a := i_buff[_FDE]; INC(_FDE);
+      if a = 0 then exit;
+      for i := 1 to a do
+      begin
+        if (_FBC >= o_size) or (_FDE >= i_size) then exit;
+        o_buff[_FBC] := x; INC(_FBC);
+      end;
+    end
+    else
+    begin
+      if (_FBC >= o_size) or (_FDE >= i_size) then exit;
+      o_buff[_FBC] := a; INC(_FBC);
     end;
-  end
-  else
-  begin
-    if (_FBC >= sizeof(TAmicaBuff)) or (_FDE >= i_size) then exit;
-    o_buff[_FBC] := a; INC(_FBC);
-  end;
-  goto unpack;
+  until false; //can it hung?
 end;
 
 //---
@@ -602,8 +600,7 @@ $8400 - $a3e7 	Screen RAMs 2
 $87e8 - $87fb 	20 x $d021 colors
 $a400 - $c33f 	Bitmap 2
 $c340 	???
- 
-*)  
+*)
 end;
 
 function TC64.GenericLoader(FileName: string; callback: TC64Loader; ca: TCanvas; mode: TC64FileType): integer;
@@ -1099,7 +1096,7 @@ begin
     inc(g);
   end;
   for i := 0 to TOP do o_buff[i] := 0;
-  unpackRLE($FE, i_buff, g, o_buff);
+  unpackRLE_V_C($FE, i_buff, g, o_buff, sizeof(TAmicaBuff));
 
   for g := 0 to 7999 do data.bitmap[g] := o_buff[g];  
   for g := 0 to 999 do data.ink1[g] := o_buff[8000+g];
@@ -1338,7 +1335,7 @@ begin
     inc(g);
   end;
   for i := 0 to TOP do o_buff[i] := 0;
-  unpackRLE($FE, i_buff, g, o_buff);
+  unpackRLE_V_C($FE, i_buff, g, o_buff, sizeof(TAmicaBuff));
   for g := 0 to 999 do data.ink[g] := o_buff[g];
   for g := 0 to 7999 do data.bitmap[g] := o_buff[1000+(7+8+8+1)+g];
   HIRESshow(data, ca);
@@ -1383,53 +1380,53 @@ begin
   end;
 
   for i := 0 to high(o_buff) do o_buff[i] := 0;
-  AMICAunpack(i_buff, o_buff);
-  AMICA2KOALA(o_buff, koala);
-  MULTICOLORshow(koala, ca);
-end;
+  AMICAunpack(i_buff, o_buff, sizeof(TAmicaBuff));
 
-//------------------------------------------------------------------------------
-//NOTE: that used to be old amica.pas file
-//'AMICA PAINT' C-64 FORMAT SCREEN UNPACKER
-//FROM MY ORIGINAL 'SHOWPIX' RESOURCED BY MONSTER/GDC (c)1992
-//6502 ASM -> PAS coversion (c)2009 MONSTER/GDC, Noniewicz.com
-//this code is kinda lame (labels) because it's direct translation from ASM
-//created: 20091230
-//updated: 20171029 (nice(r) code, as part of this object)
-//------------------------------------------------------------------------------
-
-procedure TC64.AMICAunpack(i_buff: TAmicaBuff; var o_buff: TAmicaBuff);
-label unpack, hop, ret2;
-var i, x, a: byte;
-    _FBC, _FDE: integer;
-
-    procedure SUB1; begin o_buff[_FBC] := a; INC(_FBC); end;
-    procedure SUB2; begin a := i_buff[_FDE]; INC(_FDE); end;
-begin
-  _FBC := 0;
-  _FDE := 0+2;
-unpack:
-  SUB2;
-  if a = $c2 then goto hop;
-  SUB1;
-  goto unpack;
-hop:
-  SUB2;
-  if a = 0 then goto ret2;
-  x := a;
-  SUB2;
-  for i := 1 to x do SUB1;
-  goto unpack;
-ret2:
-end;
-
-procedure TC64.AMICA2KOALA(o_buff: TAmicaBuff; var koala: MULTIdata);
-var i: integer;
-begin
   for i := 0 to 8000-1 do koala.bitmap[i] := o_buff[i]; //320*200/8 = 8000
   for i := 0 to 1000-1 do koala.ink1[i] := o_buff[8000+i];   
   for i := 0 to 1000-1 do koala.ink2[i] := o_buff[8000+1000+i]; //$D800
   koala.backGr := o_buff[$F710-$c000] and $0f;
+
+  MULTICOLORshow(koala, ca);
+end;
+
+//------------------------------------------------------------------------------
+//NOTE: that used to be old amica.pas file [this remark will disappear]
+//'AMICA PAINT' C-64 FORMAT SCREEN UNPACKER
+//FROM MY ORIGINAL 'SHOWPIX' RESOURCED BY MONSTER/GDC (c)1992
+//6502 ASM -> PAS coversion (c)2009 MONSTER/GDC, Noniewicz.com
+//this code was kinda lame .. in process of fixing
+//created: 20091230
+//updated: 20171029 (nice(r) code, as part of this object)
+//updated: 20171113 cleanup#1 no labels, took years but better late than never
+//------------------------------------------------------------------------------
+
+procedure TC64.AMICAunpack(i_buff: TAmicaBuff; var o_buff: TAmicaBuff; o_size: integer);
+var i, x, a: byte;
+    _FBC, _FDE: integer;
+begin
+  _FBC := 0;
+  _FDE := 0+2;
+  repeat
+    a := i_buff[_FDE]; INC(_FDE);
+    if a = $c2 then
+    begin
+      a := i_buff[_FDE]; INC(_FDE);
+      if a = 0 then exit;
+      x := a;
+      a := i_buff[_FDE]; INC(_FDE);
+      for i := 1 to x do
+      begin
+        if (_FBC >= o_size) (* or (_FDE >= i_size) *) then exit;
+        o_buff[_FBC] := a; INC(_FBC);
+      end;
+    end
+    else
+    begin
+      if (_FBC >= o_size) (* or (_FDE >= i_size) *) then exit;
+      o_buff[_FBC] := a; INC(_FBC);
+    end;
+  until false; //can it hung? coz if it can it will
 end;
 
 //---
@@ -1585,7 +1582,7 @@ begin
 
 	if (temp[0] = 0) and ((temp[1] = $3b) or (temp[1] = $3c)) then  //FLI
   begin
-    showmessage('DEBUG: FLI detected');  
+//    showmessage('DEBUG: FLI detected');  
     if (temp[1] = $3b) then //FLI file with background colors
     begin
       for i := 0 to 255 do read(f, fli.bgcol[i]);
@@ -1611,7 +1608,7 @@ begin
     read(f, temp[2]);
     if (temp[2] = ord('b')) then //BFLI file
     begin
-      showmessage('DEBUG: BFLI detected');
+//      showmessage('DEBUG: BFLI detected');
 
       for i := 0 to 1023 do read(f, fli.colmem[i]);  //Color mem is strange? why?
 
@@ -1680,8 +1677,9 @@ begin
     end
     else if (temp[2] = ord('f')) then //FFLI
     begin
-      showmessage('DEBUG: FFLI detected');
+//      showmessage('DEBUG: FFLI detected');
       raise(Exception.Create('Can not convert FFLI pictures (yet)'));
+      //coz no idea how :)
     end
     else
     begin //unknown
@@ -1706,7 +1704,7 @@ begin
     read(f, temp[2]);
     if (temp[2] = ord('I')) then //IFLI file
     begin
-      showmessage('DEBUG: IFLI detected');
+//      showmessage('DEBUG: IFLI detected');
 
       for i := 0 to 8192-1 do read(f, ifli.chrmem1[i]);
       for i := 0 to 8192-1 do read(f, ifli.gfxmem1[i]);
@@ -1804,12 +1802,12 @@ begin
     C64_ADVARTST,
     C64_CDU,
     C64_RAINBOW:  result := LoadMulticolorToBitmap(FileName, ca, mode);
+    C64_AMICA:    result := LoadAmicaToBitmap(FileName, ca);
     C64_HIRES,
     C64_HED,
     C64_DDL,
     C64_DDL_RLE,
     C64_ISH:      result := LoadHiresToBitmap(FileName, ca, mode);
-    C64_AMICA:    result := LoadAmicaToBitmap(FileName, ca);
     C64_LOGO:     result := LoadLogoToBitmap(FileName, ca);
     C64_FNT:      result := LoadFontToBitmap(FileName, ca);
     C64_FNTB:     result := LoadFont2x2ToBitmap(FileName, ca);
