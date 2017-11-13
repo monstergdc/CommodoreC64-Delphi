@@ -14,6 +14,7 @@ Supported formats include:
 - Amica Paint (by OLIVER STILLER/MDG) (pc-ext: .ami)
 - FLI Graph 2.2 (by blackmail) (pc-ext: .bml)
 - AFLI-editor v2.0 (by Topaz Beerline) (pc-ext: .afl)
+- Hires FLI (by Crest) (pc-ext: .hfc) [AFLI]
 - some other *FLI formats -- IN PROGRESS 
 - 8x8 and 16x16 font (hires/multicolor) - YET UNFINISHED
 - sprites (hires/multicolor, also font sprited) - YET UNFINISHED

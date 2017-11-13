@@ -5,7 +5,7 @@ unit c64;
 {$ENDIF}
 
 //------------------------------------------------------------------------------
-//Commodore C-64 GFX files manipulation Delphi (7+) / Lazarus class, v1.39
+//Commodore C-64 GFX files manipulation Delphi (7+) / Lazarus class, v1.40
 //Crossplatform (Delphi 7+ / Lazarus on Win32, Lazarus on Linux)
 //(c)1994, 1995, 2009-2011, 2017 Noniewicz.com, Jakub Noniewicz aka MoNsTeR/GDC
 //E-mail: monster@Noniewicz.com
@@ -29,6 +29,7 @@ unit c64;
 //- Amica Paint (by OLIVER STILLER/MDG) (pc-ext: .ami)
 //- FLI Graph 2.2 (by blackmail) (pc-ext: .bml)
 //- AFLI-editor v2.0 (by Topaz Beerline) (pc-ext: .afl)
+//- Hires FLI (by Crest) (pc-ext: .hfc) [AFLI]
 //- some other *FLI formats -- IN PROGRESS 
 //- 8x8 and 16x16 font (hires/multicolor) - YET UNFINISHED
 //- sprites (hires/multicolor, also font sprited) - YET UNFINISHED
@@ -65,6 +66,7 @@ unit c64;
 //updated: 20171112 1155-1325
 //updated: 20171112 2045-2115
 //updated: 20171112 2200-2330
+//updated: 20171113 1000-1045
 
 {todo:
 # MAIN:
@@ -86,7 +88,6 @@ unit c64;
 - mob - anim?
 - add misc limit checks
 - add deeper byte format detection
-- also open source c64pas app
 - ZX analogue (6144/768/6912)?
 - even go xnView or recoil ?
 - C code version (so more portable) ?
@@ -146,6 +147,9 @@ unit c64;
 - added support for Doodle RLE packed .jj
 - added support for Koala Painter 2 RLE packed .gg
 - cleanup: MOBloadHires v MOBloadMulticolor -> one call
+# v1.40
+- added support for Hires FLI (by Crest) (pc-ext: .hfc) [AFLI]
+- cleanup
 }
 
 interface
@@ -215,7 +219,9 @@ TC64FileType = (C64_UNKNOWN,
                 C64_DDL_RLE,
                 C64_AMICA,
                 C64_LOGO, C64_FNT, C64_FNTB, C64_MOB, C64_MBF,
-                C64_FLI, C64_AFLI, C64_BFLI, C64_IFLI, C64_FFLI);
+                C64_FLI, C64_AFLI, C64_BFLI, C64_IFLI, C64_FFLI,
+                C64_HFC
+                );
 
 TC64 = class(TObject)
 private
@@ -268,7 +274,8 @@ private
   procedure FNTload(ca: TCanvas);
   procedure FNTBload(ca: TCanvas);
   procedure MOBload(ca: TCanvas);
-  procedure FLIload(ca: TCanvas);  
+  procedure AFLIload(ca: TCanvas);
+  procedure FLIload(ca: TCanvas);
 public
   constructor Create;
   function GetC64Color(index: integer): TColor;
@@ -286,7 +293,7 @@ public
   function LoadFontToBitmap(FileName: string; ca: TCanvas): integer;
   function LoadFont2x2ToBitmap(FileName: string; ca: TCanvas): integer;
   function LoadMobToBitmap(FileName: string; ca: TCanvas): integer;
-  function LoadFliToBitmap(FileName: string; ca: TCanvas): integer;
+  function LoadFliToBitmap(FileName: string; ca: TCanvas; mode: TC64FileType): integer;
 
   function LoadC64ToBitmap(FileName: string; ca: TCanvas): integer;  
 published
@@ -362,31 +369,32 @@ const
 
 
 
-//Escape code $FE / 1 byte value / 1 byte count
+//RLE: Escape code / 1 byte value / 1 byte count
 //todo: rewrite clean
-procedure unpackRLE(i_buff: TAmicaBuff; i_size: integer; var o_buff: TAmicaBuff);
-label unpack, hop;
+procedure unpackRLE(esc: byte; i_buff: TAmicaBuff; i_size: integer; var o_buff: TAmicaBuff);
+label unpack;
 var i, x, a: byte;
     _FBC, _FDE: integer;
 begin
   _FBC := 0;
-  _FDE := 0+2;
+  _FDE := 0+2; //skip load addr
 unpack:
   a := i_buff[_FDE]; INC(_FDE);
-  if a = $FE then goto hop;
-  if _FBC >= sizeof(TAmicaBuff) then exit;
-  if _FDE >= i_size then exit;
-  o_buff[_FBC] := a; INC(_FBC);
-  goto unpack;
-hop:
-  x := i_buff[_FDE]; INC(_FDE);
-  a := i_buff[_FDE]; INC(_FDE);
-  if a = 0 then exit;
-  for i := 1 to a do
+  if a = esc then
   begin
-    if _FBC >= sizeof(TAmicaBuff) then exit;
-    if _FDE >= i_size then exit;
-    o_buff[_FBC] := x; INC(_FBC);
+    x := i_buff[_FDE]; INC(_FDE);
+    a := i_buff[_FDE]; INC(_FDE);
+    if a = 0 then exit;
+    for i := 1 to a do
+    begin
+      if (_FBC >= sizeof(TAmicaBuff)) or (_FDE >= i_size) then exit;
+      o_buff[_FBC] := x; INC(_FBC);
+    end;
+  end
+  else
+  begin
+    if (_FBC >= sizeof(TAmicaBuff)) or (_FDE >= i_size) then exit;
+    o_buff[_FBC] := a; INC(_FBC);
   end;
   goto unpack;
 end;
@@ -407,14 +415,14 @@ begin
     result := 0
   else
     case FPalette of
-      C64S_PAL:     result := RGB(c64s_rgb[0, index], c64s_rgb[1, index], c64s_rgb[2, index]);
-      CCS64_PAL:    result := RGB(ccs64_rgb[0, index], ccs64_rgb[1, index], ccs64_rgb[2, index]);
-      FRODO_PAL:    result := RGB(frodo_rgb[0, index], frodo_rgb[1, index], frodo_rgb[2, index]);
-      GODOT_PAL:    result := RGB(godot_rgb[0, index], godot_rgb[1, index], godot_rgb[2, index]);
-      PC64_PAL:     result := RGB(pc64_rgb[0, index], pc64_rgb[1, index], pc64_rgb[2, index]);
-      VICE_PAL:     result := RGB(vice_rgb[0, index], vice_rgb[1, index], vice_rgb[2, index]);
-      C64HQ_PAL:    result := RGB(c64hq_rgb[0, index], c64hq_rgb[1, index], c64hq_rgb[2, index]);
-      OLDVICE_PAL:  result := RGB(oldvice_rgb[0, index], oldvice_rgb[1, index], oldvice_rgb[2, index]);
+      C64S_PAL:     result := RGB(c64s_rgb[0, index],     c64s_rgb[1, index],     c64s_rgb[2, index]);
+      CCS64_PAL:    result := RGB(ccs64_rgb[0, index],    ccs64_rgb[1, index],    ccs64_rgb[2, index]);
+      FRODO_PAL:    result := RGB(frodo_rgb[0, index],    frodo_rgb[1, index],    frodo_rgb[2, index]);
+      GODOT_PAL:    result := RGB(godot_rgb[0, index],    godot_rgb[1, index],    godot_rgb[2, index]);
+      PC64_PAL:     result := RGB(pc64_rgb[0, index],     pc64_rgb[1, index],     pc64_rgb[2, index]);
+      VICE_PAL:     result := RGB(vice_rgb[0, index],     vice_rgb[1, index],     vice_rgb[2, index]);
+      C64HQ_PAL:    result := RGB(c64hq_rgb[0, index],    c64hq_rgb[1, index],    c64hq_rgb[2, index]);
+      OLDVICE_PAL:  result := RGB(oldvice_rgb[0, index],  oldvice_rgb[1, index],  oldvice_rgb[2, index]);
       VICEDFLT_PAL: result := RGB(vicedflt_rgb[0, index], vicedflt_rgb[1, index], vicedflt_rgb[2, index]);
       else result := 0;
     end;
@@ -510,6 +518,7 @@ begin
   //Amica Paint
   if (e = '.[B]') or (e = '.AMI') then result := C64_AMICA; //note: '[B]' invented here
 
+  //?
   if e = '.GFX' then result := C64_LOGO;  //note: ext invented here
 
   //8x8 font (multi or hires)
@@ -526,7 +535,10 @@ begin
   if (e = '.FLI') or (e = '.BML') then result := C64_FLI;
 
   //AFLI-editor v2.0 (by Topaz Beerline) (pc-ext: .afl)
-  if (e = '.AFLI') or (e = '.AFL') (*or (e = '.HFC')*) then result := C64_AFLI;
+  if (e = '.AFLI') or (e = '.AFL')  then result := C64_AFLI;
+
+  //Hires FLI (by Crest) (pc-ext: .hfc)
+  if (e = '.HFC') then result := C64_HFC;
 
   if (e = '.BFLI') then result := C64_BFLI;
 
@@ -553,11 +565,6 @@ $6000 - $7f3f 	Bitmap 1
 $7f40 	Background
 $7f42 	$d016 flag
 $8000 - $9f3f 	Bitmap 2
-
-Hires FLI (by Crest) (pc-ext: .hfc) -- DEMOPIC.HFC [AFLI]
-load address: $4000 - $7fff
-$4000 - $5f3f 	Bitmap
-$6000 - $7fe7 	Screen RAMs
 
 Hires Manager (by Cosmos) (pc-ext: .him) -- logo.him / logo1.him
 Unpacked format:
@@ -962,7 +969,7 @@ begin
         bits := 7 - (x mod 8);  //bit numbers
         a := (fli.gfxmem[pos] shr bits) and 1;
         if (x < 24) then
-            b := $f
+          b := $f
         else
         begin
           if (a <> 0) then
@@ -1092,7 +1099,7 @@ begin
     inc(g);
   end;
   for i := 0 to TOP do o_buff[i] := 0;
-  unpackRLE(i_buff, g, o_buff);
+  unpackRLE($FE, i_buff, g, o_buff);
 
   for g := 0 to 7999 do data.bitmap[g] := o_buff[g];  
   for g := 0 to 999 do data.ink1[g] := o_buff[8000+g];
@@ -1331,7 +1338,7 @@ begin
     inc(g);
   end;
   for i := 0 to TOP do o_buff[i] := 0;
-  unpackRLE(i_buff, g, o_buff);
+  unpackRLE($FE, i_buff, g, o_buff);
   for g := 0 to 999 do data.ink[g] := o_buff[g];
   for g := 0 to 7999 do data.bitmap[g] := o_buff[1000+(7+8+8+1)+g];
   HIRESshow(data, ca);
@@ -1519,6 +1526,32 @@ begin
   end;
 end;
 
+(*
+Hires FLI (by Crest) (pc-ext: .hfc) [AFLI]
+load address: $4000 - $7fff
+$4000 - $5f3f 	Bitmap
+$6000 - $7fe7 	Screen RAMs
+*)
+procedure TC64.AFLIload(ca: TCanvas);
+var fli: FLIdata;
+    none: byte;
+    i, j: integer;
+begin
+  if not assigned(ca) then exit;
+
+  FLIclear(fli);
+  read(f, none, none);
+
+  for i := 0 to 7999 do
+    read(f, fli.gfxmem[i]);
+  //16386 - 8000 - 2 = 8384 / 8*1024 = 8192 / 8384-8192 = 192
+  for j := 0 to 191 do read(f, none);
+  for j := 0 to 7 do
+    for i := 0 to 1023 do
+      read(f, fli.chrmem[j][i]);
+
+  FLIshow(fli, ca, C64_AFLI);
+end;
 
 procedure TC64.FLIload(ca: TCanvas);
 var fli: FLIdata;
@@ -1535,7 +1568,7 @@ begin
 
 	if (temp[0] = 0) and (temp[1] = $40) then //AFLI file
   begin
-    showmessage('DEBUG: AFLI detected');
+//    showmessage('DEBUG: AFLI detected');
     for j := 0 to 7 do
       for i := 0 to 1023 do
         read(f, fli.chrmem[j][i]); //buff 2048 but 1024 loaded
@@ -1746,9 +1779,12 @@ begin
   result := GenericLoader(FileName, MOBload, ca, C64_MOB);
 end;
 
-function TC64.LoadFliToBitmap(FileName: string; ca: TCanvas): integer;
+function TC64.LoadFliToBitmap(FileName: string; ca: TCanvas; mode: TC64FileType): integer;
 begin
-  result := GenericLoader(FileName, FLIload, ca, C64_FLI);
+  if mode = C64_HFC then
+    result := GenericLoader(FileName, AFLIload, ca, C64_HFC)
+  else
+    result := GenericLoader(FileName, FLIload, ca, C64_FLI);
 end;
 
 //---
@@ -1759,7 +1795,6 @@ begin
   FLastError := 'Unknown format extension';
   mode := ExtMapper(ExtractFileExt(FileName));
   case mode of
-    C64_UNKNOWN:  result := -1;
     C64_KOALA,
     C64_KOALA_RLE,
     C64_WIGMORE,
@@ -1784,7 +1819,8 @@ begin
     C64_AFLI,
     C64_BFLI,
     C64_IFLI,
-    C64_FFLI:     result := LoadFliToBitmap(FileName, ca);
+    C64_FFLI,
+    C64_HFC:      result := LoadFliToBitmap(FileName, ca, mode);
     else
       result := -1;
   end;
