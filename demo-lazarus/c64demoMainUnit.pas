@@ -5,7 +5,7 @@ unit c64demoMainUnit;
 //TC64 Delphi/Lazarus class example / demo Lazarus, v1.0
 //(c)2017 Noniewicz.com
 //created: 20171029
-//updated: 20171101, 05, 11
+//updated: 20171101, 05, 11, 13
 
 interface
 
@@ -282,33 +282,33 @@ end;
 procedure TForm1.BitBtn9Click(Sender: TObject);
 begin
   ClearImage;
-  c64.LoadFliToBitmap(folder+'intel.ifli', Image1.Picture.Bitmap.Canvas);
+  c64.LoadFliToBitmap(folder+'intel.ifli', Image1.Picture.Bitmap.Canvas, C64_IFLI);
   showmessage('DEBUG: '+c64.LastError);
 end;
 
 procedure TForm1.BitBtnBFLIClick(Sender: TObject);
 begin
   ClearImage(true);
-  c64.LoadFliToBitmap(folder+'kira.bfli', Image1.Picture.Bitmap.Canvas);
+  c64.LoadFliToBitmap(folder+'kira.bfli', Image1.Picture.Bitmap.Canvas, C64_BFLI);
 end;
 
 procedure TForm1.BitBtn11Click(Sender: TObject);
 begin
   ClearImage;
-  c64.LoadFliToBitmap(folder+'parrot.ffli', Image1.Picture.Bitmap.Canvas);
+  c64.LoadFliToBitmap(folder+'parrot.ffli', Image1.Picture.Bitmap.Canvas, C64_FFLI);
   showmessage('DEBUG: '+c64.LastError);
 end;
 
 procedure TForm1.BitBtnFLIClick(Sender: TObject);
 begin
   ClearImage;
-  c64.LoadFliToBitmap(folder+'cpu.fli', Image1.Picture.Bitmap.Canvas);
+  c64.LoadFliToBitmap(folder+'cpu.fli', Image1.Picture.Bitmap.Canvas, C64_FLI);
 end;
 
 procedure TForm1.BitBtnAFLIClick(Sender: TObject);
 begin
   ClearImage;
-  c64.LoadFliToBitmap(folder+'logo.afl', Image1.Picture.Bitmap.Canvas);
+  c64.LoadFliToBitmap(folder+'logo.afl', Image1.Picture.Bitmap.Canvas, C64_AFLI);
 end;
 
 procedure TForm1.BitBtnHIEDDIClick(Sender: TObject);
