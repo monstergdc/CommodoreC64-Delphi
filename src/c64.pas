@@ -5,7 +5,7 @@ unit c64;
 {$ENDIF}
 
 //------------------------------------------------------------------------------
-//Commodore C-64 GFX files manipulation Delphi (7+) / Lazarus class, v1.40
+//Commodore C-64 GFX files manipulation Delphi (7+) / Lazarus class, v1.41
 //Crossplatform (Delphi 7+ / Lazarus on Win32, Lazarus on Linux)
 //(c)1994, 1995, 2009-2011, 2017 Noniewicz.com, Jakub Noniewicz aka MoNsTeR/GDC
 //E-mail: monster@Noniewicz.com
@@ -30,6 +30,7 @@ unit c64;
 //- FLI Graph 2.2 (by blackmail) (pc-ext: .bml)
 //- AFLI-editor v2.0 (by Topaz Beerline) (pc-ext: .afl)
 //- Hires FLI (by Crest) (pc-ext: .hfc) [AFLI]
+//- Gunpaint (pc-ext: .gun,.ifl)
 //- some other *FLI formats -- IN PROGRESS 
 //- 8x8 and 16x16 font (hires/multicolor) - YET UNFINISHED
 //- sprites (hires/multicolor, also font sprited) - YET UNFINISHED
@@ -68,6 +69,8 @@ unit c64;
 //updated: 20171112 2200-2330
 //updated: 20171113 1000-1045
 //updated: 20171113 2255-2350
+//updated: 20171114 2250-0000
+//updated: 20171115 0000-0035
 
 {todo:
 # MAIN:
@@ -150,6 +153,8 @@ unit c64;
 # v1.40
 - added support for Hires FLI (by Crest) (pc-ext: .hfc) [AFLI]
 - cleanup
+# v1.41
+- added support for Gunpaint (pc-ext: .gun,.ifl)
 }
 
 interface
@@ -220,7 +225,7 @@ TC64FileType = (C64_UNKNOWN,
                 C64_AMICA,
                 C64_LOGO, C64_FNT, C64_FNTB, C64_MOB, C64_MBF,
                 C64_FLI, C64_AFLI, C64_BFLI, C64_IFLI, C64_FFLI,
-                C64_HFC
+                C64_HFC, C64_GUN_IFLI
                 );
 
 TC64 = class(TObject)
@@ -274,6 +279,7 @@ private
   procedure FNTBload(ca: TCanvas);
   procedure MOBload(ca: TCanvas);
   procedure AFLIload(ca: TCanvas);
+  procedure GUNFLIload(ca: TCanvas);
   procedure FLIload(ca: TCanvas);
 public
   constructor Create;
@@ -542,7 +548,10 @@ begin
 
   if (e = '.FFLI') then result := C64_FFLI;
 
-  if (e = '.IFLI') or (e = '.IFL') (*or (e = '.GUN')*) then result := C64_IFLI;
+  if (e = '.IFLI') or (e = '.IFL') then result := C64_IFLI;
+
+  if (e = '.GUN') then result := C64_GUN_IFLI;
+
 
 (* lookup more-to-implement folder for:
 
@@ -588,18 +597,6 @@ $83e8 - $a3e7 	Screen RAMs 2
 $a3e8 - $c327 	Bitmap 2
 $c328 - $c38b 	100 x $d021 color
 RLE sequences are ESCAPE,COUNT,BYTE.
-
-Gunpaint (pc-ext: .gun,.ifl) -- Gunpaint.gun / MECENARI.gun
-load address: $4000 - $c340
-$4000 - $5fe7 	Screen RAMs 1
-$43e8 - $43f7 	header db 'GUNPAINT (JZ) '
-$6000 - $7f3f 	Bitmap 1
-$7f4f - $7fff 	177 x $d021 colors
-$8000 - $83e7 	Color RAM
-$8400 - $a3e7 	Screen RAMs 2
-$87e8 - $87fb 	20 x $d021 colors
-$a400 - $c33f 	Bitmap 2
-$c340 	???
 *)
 end;
 
@@ -1550,6 +1547,49 @@ begin
   FLIshow(fli, ca, C64_AFLI);
 end;
 
+(*
+Gunpaint (pc-ext: .gun,.ifl) -- Gunpaint.gun / MECENARI.gun
+load address: $4000 - $c340
+$4000 - $5fe7 	Screen RAMs 1
+$43e8 - $43f7 	header db 'GUNPAINT (JZ) '
+$6000 - $7f3f 	Bitmap 1
+$7f4f - $7fff 	177 x $d021 colors
+$8000 - $83e7 	Color RAM
+$8400 - $a3e7 	Screen RAMs 2
+$87e8 - $87fb 	20 x $d021 colors
+$a400 - $c33f 	Bitmap 2
+$c340 	???
+*)
+(* Gunpaint IFLI format - alternative to the above
+Start address = $4000, end = $c341
+$4000 - $6000     FLI screenmaps 1
+$6000 - $7f40     FLI bitmap 1
+$8000 - $8400     Colourmap  ($d800 colours)
+$8400 - $a400     FLI screenmaps 2
+$a400 - $c340     FLI bitmap 2
+$c341             ???   (doesn't seem to be important..)
+*)
+procedure TC64.GUNFLIload(ca: TCanvas);
+var ifli: IFLIdata;
+    none: byte;
+    i: integer;
+begin
+  if not assigned(ca) then exit;
+
+  IFLIclear(ifli);
+  read(f, none, none); //33603 total 
+
+  for i := 0 to 8192-1 do read(f, ifli.chrmem1[i]);  //$4000 - $5fe7 = Screen RAMs 1
+  for i := 0 to 8000-1 do read(f, ifli.gfxmem1[i]);  //$6000 - $7f3f = Bitmap 1
+  for i := 0 to 15-1 do read(f, none);               //?
+  for i := 0 to 177-1 do read(f, none);              //$7f4f - $7fff = 177 x $d021 colors
+  for i := 0 to 1024-1 do read(f, ifli.colmem[i]);   //$8000 - $83e7 = Color RAM
+  for i := 0 to 8192-1 do read(f, ifli.chrmem2[i]);  //$8400 - $a3e7 = Screen RAMs 2
+  for i := 0 to 8000-1 do read(f, ifli.gfxmem2[i]);  //$a400 - $c33f = Bitmap 27999+1
+
+  IFLIshow(ifli, ca); //C64_GUN_IFLI
+end;
+
 procedure TC64.FLIload(ca: TCanvas);
 var fli: FLIdata;
     ifli: IFLIdata;
@@ -1687,17 +1727,9 @@ begin
     end;
   end;
 
-(* Gunpaint IFLI format
-		Start address = $4000, end = $c341
-		$4000 - $6000     FLI screenmaps 1
-		$6000 - $7f40     FLI bitmap 1
-		$8000 - $8400     Colourmap  ($d800 colours)
-		$8400 - $a400     FLI screenmaps 2
-		$a400 - $c340     FLI bitmap 2
-		$c341             ???   (doesn't seem to be important..)
-*)
+//IFLI based on: C64 Horizontal 'Interlaced' FLI By Pasi 'Albert' Ojala © 1991-1998
 
-//IFLI based on: C64 Horizontal 'Interlaced' FLI By Pasi 'Albert' Ojala Â© 1991-1998
+//note: gunpaint - separate code
 
   if (temp[0] = $0) and (temp[1] = $3f) then //IFLI
   begin
@@ -1782,7 +1814,10 @@ begin
   if mode = C64_HFC then
     result := GenericLoader(FileName, AFLIload, ca, C64_HFC)
   else
-    result := GenericLoader(FileName, FLIload, ca, C64_FLI);
+    if mode = C64_GUN_IFLI then
+      result := GenericLoader(FileName, GUNFLIload, ca, C64_GUN_IFLI)
+    else
+      result := GenericLoader(FileName, FLIload, ca, C64_FLI);
 end;
 
 //---
@@ -1818,7 +1853,8 @@ begin
     C64_BFLI,
     C64_IFLI,
     C64_FFLI,
-    C64_HFC:      result := LoadFliToBitmap(FileName, ca, mode);
+    C64_HFC,
+    C64_GUN_IFLI: result := LoadFliToBitmap(FileName, ca, mode);
     else
       result := -1;
   end;
