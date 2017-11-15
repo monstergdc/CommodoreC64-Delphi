@@ -5,7 +5,7 @@ unit c64;
 {$ENDIF}
 
 //------------------------------------------------------------------------------
-//Commodore C-64 GFX files manipulation Delphi (7+) / Lazarus class, v1.41
+//Commodore C-64 GFX files manipulation Delphi (7+) / Lazarus class, v1.42
 //Crossplatform (Delphi 7+ / Lazarus on Win32, Lazarus on Linux)
 //(c)1994, 1995, 2009-2011, 2017 Noniewicz.com, Jakub Noniewicz aka MoNsTeR/GDC
 //E-mail: monster@Noniewicz.com
@@ -40,7 +40,7 @@ unit c64;
 //- CDU-Paint (pc-ext: .cdu)
 //- Rainbow Painter (pc-ext: .rp)
 //------------------------------------------------------------------------------
-//History:
+//History (==~cost):
 //created: somewhere in 1994-1995
 //updated: 20091231 ????-????
 //updated: 20100101 ????-????
@@ -71,6 +71,7 @@ unit c64;
 //updated: 20171113 2255-2350
 //updated: 20171114 2250-0000
 //updated: 20171115 0000-0035
+//updated: 20171115 1905-2025
 
 {todo:
 # MAIN:
@@ -78,12 +79,14 @@ unit c64;
 .- cleanup: RLE unpack / amica unpack - rewrite clean
 .- logo - hires v multi - LOGOshow(hires)
 # NEXT:
+- cleanup *FLI code
 - more even more exotic formats
-- fnt/fntb/mob - get given one/range | also output really all
 - separate load and canvas pack (rerender w/o load)
 - [!] pack back to C64 formats and write (colormap, dither?)
 - [!] recode one c64 fmt to another (m-m, h-h, h*m-*m*h)
 # LATER/MAYBE:
+- fnt/fntb/mob - get given one/range | also output really all
+- impement some SaveToStream / LoadFromStream ?
 - raw data output?
 - commonize demo code d7/laz
 - godot.jj - see why differs from congo rendering
@@ -92,7 +95,7 @@ unit c64;
 - add misc limit checks
 - add deeper byte format detection
 - ZX analogue (6144/768/6912)?
-- even go xnView / recoil / congo ?
+- even go xnView / recoil / congo / view64 ?
 - C code version (so more portable) ?
 }
 
@@ -155,6 +158,8 @@ unit c64;
 - cleanup
 # v1.41
 - added support for Gunpaint (pc-ext: .gun,.ifl)
+# v1.42
+- added support for FFLI
 }
 
 interface
@@ -194,7 +199,7 @@ type
                    bitmap: array[0..$3f40-$2000-1] of byte;
                    ink: array[0..$8328-$7f40-1] of byte;
                  end;
-     FLIdata = record //generic, any FLI
+     FLIdata = record //generic, any FLI (except some)
                  gfxmem: array[0..16384-1] of byte;
                  chrmem: array[0..7, 0..2048-1] of byte;
                  colmem: array[0..1024-1] of byte;
@@ -206,6 +211,14 @@ type
                   chrmem1: array[0..8192-1] of byte;
                   chrmem2: array[0..8192-1] of byte;
                   colmem: array[0..1024-1] of byte;
+                end;
+     FFLIdata = record //FFLI
+                  gfxmem1: array[0..8192-1] of byte;
+                  chrmem1: array[0..8192-1] of byte;
+                  chrmem2: array[0..8192-1] of byte;
+                  colmem: array[0..1024-1] of byte;
+                  bgmem1: array[0..256-1] of byte;
+                  bgmem2: array[0..256-1] of byte;
                 end;
 
 
@@ -246,6 +259,7 @@ private
   procedure MOBclear(var data: MOBdata);
   procedure FLIclear(var data: FLIdata);
   procedure IFLIclear(var data: IFLIdata);
+  procedure FFLIclear(var data: FFLIdata);
 
   procedure MULTICOLORshow(data: MULTIdata; ca: TCanvas);
   procedure HIRESshow(data: HIRESdata; ca: TCanvas);
@@ -256,6 +270,7 @@ private
   procedure mMOBshow(x0, y0: integer; mob: MOBdata; ca: TCanvas; cnt: byte);
   procedure FLIshow(fli: FLIdata; ca: TCanvas; mode: TC64FileType);
   procedure IFLIshow(ifli: IFLIdata; ca: TCanvas);
+  procedure FFLIshow(ffli: FFLIdata; ca: TCanvas);
 
   procedure KOALAload(ca: TCanvas);
   procedure KOALAload_RLE(ca: TCanvas);
@@ -692,6 +707,17 @@ begin
   for i := 0 to 1023 do data.colmem[i] := 0;
 end;
 
+procedure TC64.FFLIclear(var data: FFLIdata);
+var i: integer;
+begin
+  for i := 0 to 8191 do data.gfxmem1[i] := 0;
+  for i := 0 to 8191 do data.chrmem1[i] := 0;
+  for i := 0 to 8191 do data.chrmem2[i] := 0;
+  for i := 0 to 1023 do data.colmem[i] := 0;
+  for i := 0 to 255 do data.bgmem1[i] := 0;
+  for i := 0 to 255 do data.bgmem2[i] := 0;
+end;
+
 //---
 
 procedure TC64.MULTICOLORshow(data: MULTIdata; ca: TCanvas);
@@ -945,6 +971,8 @@ const bitmask: array[0..3] of byte = ($c0, $30, $0c, $03);
 var x, y, ind, pos, bits, ysize(*, xsize*): integer;
     a, b: byte;
 begin
+  if not assigned(ca) then exit;
+  
   ysize := 200;
 //  xsize := 160;
   b := 0;
@@ -1016,6 +1044,8 @@ var x, y, ind, pos, bits, memind: integer;
     c0, c1: byte;
     buffer: array[0..3*321] of byte;    
 begin
+  if not assigned(ca) then exit;
+  
   c0 := 0;
   c1 := 0;
   for y := 0 to 200-1 do
@@ -1058,6 +1088,46 @@ begin
     end;
     for x := 0 to 320-1 do
       ca.Pixels[x, y] := RGB(buffer[x*3+0], buffer[x*3+1], buffer[x*3+2]);
+  end;
+end;
+
+procedure TC64.FFLIshow(ffli: FFLIdata; ca: TCanvas);
+const bitmask: array[0..3] of byte = ($c0, $30, $0c, $03);
+      bitshift: array[0..3] of byte = ($40, $10, $04, $01);
+var x, y, ind, pos, bits, memind: integer;
+    a0, c0, c1: byte;
+begin
+  if not assigned(ca) then exit;
+  
+  c0 := 0;
+  c1 := 0;
+  for y := 0 to 200-1 do   //todo: IFLI -> FFLI (320->160, how to mix?)
+  begin
+    for x := 0 to 160-1 do
+    begin
+      ind := x div 4 + (y div 8)*40;  //color memory index
+      pos := (y mod 8) + (x div 4)*8 + (y div 8)*320;  //gfx memory byte
+      bits := (x mod 4);  //bit numbers
+      memind := 1024*(y mod 8) + ind;
+	    a0 := (ffli.gfxmem1[pos] and bitmask[bits]) div bitshift[bits];
+      case a0 of
+        0: c0 := ffli.bgmem1[y];
+        1: c0 := ffli.chrmem1[memind] div 16;
+        2: c0 := ffli.chrmem1[memind] mod 16;
+        3: c0 := ffli.colmem[ind] and $0f;
+      end;
+      case a0 of
+        0: c1 := ffli.bgmem2[y];
+        1: c1 := ffli.chrmem2[memind] div 16;
+        2: c1 := ffli.chrmem2[memind] mod 16;
+        3: c1 := ffli.colmem[ind] and $0f;
+      end;
+      ca.Pixels[x, y] := RGB(
+	                           (GetC64ColorR(c1) + GetC64ColorR(c0)) div 2,
+  	                         (GetC64ColorG(c1) + GetC64ColorG(c0)) div 2,
+  	                         (GetC64ColorB(c1) + GetC64ColorB(c0)) div 2
+      );
+    end;
   end;
 end;
 
@@ -1593,13 +1663,16 @@ end;
 procedure TC64.FLIload(ca: TCanvas);
 var fli: FLIdata;
     ifli: IFLIdata;
+    ffli: FFLIdata;
     temp: array[0..9] of byte;
+    none: byte;
     i, j: integer;
 begin
   if not assigned(ca) then exit;
 
   FLIclear(fli);
   IFLIclear(ifli);
+  FFLIclear(ffli);
 
   read(f, temp[0], temp[1]);
 
@@ -1643,7 +1716,7 @@ begin
     exit;
   end;
 
-  if (temp[0] = $ff) and (temp[1] = $3b) then //BFLI or FFLI
+  if (temp[0] = $ff) and ((temp[1] = $3a) or (temp[1] = $3b)) then //BFLI or FFLI
   begin
     read(f, temp[2]);
     if (temp[2] = ord('b')) then //BFLI file
@@ -1718,8 +1791,29 @@ begin
     else if (temp[2] = ord('f')) then //FFLI
     begin
 //      showmessage('DEBUG: FFLI detected');
-      raise(Exception.Create('Can not convert FFLI pictures (yet)'));
-      //coz no idea how :)
+
+(*
+	Offset	Address	Size	Used	Description
+	------	-------	----	----	-----------
+	0		          2        2	Load address ($3aff)
+	2	    $3aff	  1        1	'f' FFLI identification
+	3	    $3b00	256	     200	Background colors for each line
+	259	  $3c00	1024	  1000	Color memory
+	1283	$4000	8192	8x1000	FLI color memories
+	9475	$6000	8192	  8000	The bitmap (multicolor mode)
+	17667	$8000	8192	8x1000	FLI color memories
+	25859	$a000	  256	   200	Background colors for each line
+	26115	$a100
+*)
+
+      for i := 0 to 256-1 do read(f, ffli.bgmem1[i]);
+      for i := 0 to 1024-1 do read(f, ffli.colmem[i]);
+      for i := 0 to 8192-1 do read(f, ffli.chrmem1[i]);
+      for i := 0 to 8192-1 do read(f, ffli.gfxmem1[i]);
+      for i := 0 to 8192-1 do read(f, ffli.chrmem2[i]);
+      for i := 0 to 256-1 do read(f, ffli.bgmem2[i]);
+      FFLIshow(ffli, ca);
+      exit;
     end
     else
     begin //unknown

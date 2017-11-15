@@ -3,7 +3,7 @@ unit c64demoMainUnit;
 //TC64 Delphi/Lazarus class example / demo Delphi 7, v1.0
 //(c)2017 Noniewicz.com
 //created: 20171029
-//updated: 20171101, 05, 11, 12, 13
+//updated: 20171101, 05, 11, 12, 13, 15
 
 interface
 
@@ -288,8 +288,7 @@ end;
 procedure TForm1.BitBtn11Click(Sender: TObject);
 begin
   ClearImage;
-  c64.LoadFliToBitmap(folder+'parrot.ffli', Image1.Picture.Bitmap.Canvas, C64_FFLI);
-  showmessage('DEBUG: '+c64.LastError);
+  c64.LoadFliToBitmap(folder+'parrot_3aff.ffli', Image1.Picture.Bitmap.Canvas, C64_FFLI);
 end;
 
 procedure TForm1.BitBtnFLIClick(Sender: TObject);

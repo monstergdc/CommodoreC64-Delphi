@@ -16,6 +16,7 @@ Supported formats include:
 - AFLI-editor v2.0 (by Topaz Beerline) (pc-ext: .afl)
 - Hires FLI (by Crest) (pc-ext: .hfc) [AFLI]
 - Gunpaint (pc-ext: .gun,.ifl)
+- FFLI
 - some other *FLI formats -- IN PROGRESS 
 - 8x8 and 16x16 font (hires/multicolor) - YET UNFINISHED
 - sprites (hires/multicolor, also font sprited) - YET UNFINISHED
