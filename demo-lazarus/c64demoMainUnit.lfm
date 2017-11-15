@@ -160,8 +160,7 @@ object Form1: TForm1
       Height = 25
       Top = 66
       Width = 75
-      Caption = 'FFLI?'
-      Enabled = False
+      Caption = 'FFLI'
       OnClick = BitBtn11Click
       TabOrder = 13
     end
