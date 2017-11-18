@@ -5,7 +5,7 @@ unit c64;
 {$ENDIF}
 
 //------------------------------------------------------------------------------
-//Commodore C-64 GFX files manipulation Delphi (7+) / Lazarus class, v1.42
+//Commodore C-64 GFX files manipulation Delphi (7+) / Lazarus class, v1.43
 //Crossplatform (Delphi 7+ / Lazarus on Win32, Lazarus on Linux)
 //(c)1994, 1995, 2009-2011, 2017 Noniewicz.com, Jakub Noniewicz aka MoNsTeR/GDC
 //E-mail: monster@Noniewicz.com
@@ -31,6 +31,8 @@ unit c64;
 //- AFLI-editor v2.0 (by Topaz Beerline) (pc-ext: .afl)
 //- Hires FLI (by Crest) (pc-ext: .hfc) [AFLI]
 //- Gunpaint (pc-ext: .gun,.ifl)
+//- Funpaint 2 (by Manfred Trenz) (pc-ext: .fp2;.fun)
+//- Drazlace (pc-ext: .drl)
 //- some other *FLI formats -- IN PROGRESS 
 //- 8x8 and 16x16 font (hires/multicolor) - YET UNFINISHED
 //- sprites (hires/multicolor, also font sprited) - YET UNFINISHED
@@ -72,27 +74,41 @@ unit c64;
 //updated: 20171114 2250-0000
 //updated: 20171115 0000-0035
 //updated: 20171115 1905-2025
+//updated: 20171115 2140-2220
+//updated: 20171118 1245-1315
+//updated: 20171118 1405-1415
+//updated: 20171118 1425-1540
+//updated: 20171118 1615-1750
 
 {todo:
 # MAIN:
 .- [!] more *FLI formats
-.- cleanup: RLE unpack / amica unpack - rewrite clean
 .- logo - hires v multi - LOGOshow(hires)
 # NEXT:
-- cleanup *FLI code
-- more even more exotic formats
+- [!] more even more exotic formats
+== lookup again https://www.c64-wiki.com/wiki/Graphics_Modes
+== lookup view64 / congo / recoil for more formats
+== NUFLI - WTF is that? (there is more)
+== IFLI from $2000 ?
+== AFLI from $6c73 ?
+== mcs / mci ?
 - separate load and canvas pack (rerender w/o load)
 - [!] pack back to C64 formats and write (colormap, dither?)
 - [!] recode one c64 fmt to another (m-m, h-h, h*m-*m*h)
 # LATER/MAYBE:
+- cleanup: commonize *FLI code
+- cleanup: wrap all FLI data records?
+- cleanup: tabeliarize format structures + one call to load them all
+- cleanup: "clearers" - one, fill by sizeof+memset-like ?
 - fnt/fntb/mob - get given one/range | also output really all
-- impement some SaveToStream / LoadFromStream ?
+- implement some SaveToStream / LoadFromStream ?
 - raw data output?
 - commonize demo code d7/laz
-- godot.jj - see why differs from congo rendering
+- godot.jj - see why differs from congo rendering?
+- fun/fp2 - see why differs (cherry, valsary)?
 - prep standarized test files (so all are the same)
 - mob - anim?
-- add misc limit checks
+- add misc limit checks?
 - add deeper byte format detection
 - ZX analogue (6144/768/6912)?
 - even go xnView / recoil / congo / view64 ?
@@ -160,6 +176,12 @@ unit c64;
 - added support for Gunpaint (pc-ext: .gun,.ifl)
 # v1.42
 - added support for FFLI
+# v1.43
+- added support for Funpaint 2 (by Manfred Trenz) (pc-ext: .fp2;.fun) [packed and not]
+- added support for Drazlace (pc-ext: .drl) [packed and not]
+- code cleanup: RLE / amica unpack 
+- misc minor changes
+- ?
 }
 
 interface
@@ -211,6 +233,7 @@ type
                   chrmem1: array[0..8192-1] of byte;
                   chrmem2: array[0..8192-1] of byte;
                   colmem: array[0..1024-1] of byte;
+                  bg: byte;
                 end;
      FFLIdata = record //FFLI
                   gfxmem1: array[0..8192-1] of byte;
@@ -220,11 +243,26 @@ type
                   bgmem1: array[0..256-1] of byte;
                   bgmem2: array[0..256-1] of byte;
                 end;
+     FFLI2data = record //IFLI~FFLI
+                  gfxmem1: array[0..8192-1] of byte;
+                  gfxmem2: array[0..8192-1] of byte;
+                  chrmem1: array[0..8192-1] of byte;
+                  chrmem2: array[0..8192-1] of byte;
+                  colmem: array[0..1024-1] of byte;
+                  bgmem: array[0..256-1] of byte;
+                end;
+     DRAZFLIdata = record //Drazlace FLI 
+                 gfxmem1: array[0..8000-1] of byte;
+                 gfxmem2: array[0..8000-1] of byte;
+                 chrmem: array[0..1024-1] of byte;
+                 colmem: array[0..1024-1] of byte;
+                 bgcol: byte;
+               end;
 
 
 TC64Loader = procedure(ca: TCanvas) of object;
 
-TAmicaBuff = array[0..32767] of byte;
+TAmicaBuff = array[0..49151] of byte; //was 32767, now 49151
 
 TC64Pallete = (C64S_PAL, CCS64_PAL, FRODO_PAL, GODOT_PAL, PC64_PAL, VICE_PAL,
                C64HQ_PAL, OLDVICE_PAL, VICEDFLT_PAL);
@@ -238,7 +276,7 @@ TC64FileType = (C64_UNKNOWN,
                 C64_AMICA,
                 C64_LOGO, C64_FNT, C64_FNTB, C64_MOB, C64_MBF,
                 C64_FLI, C64_AFLI, C64_BFLI, C64_IFLI, C64_FFLI,
-                C64_HFC, C64_GUN_IFLI
+                C64_HFC, C64_GUN_IFLI, C64_FUN, C64_DRL
                 );
 
 TC64 = class(TObject)
@@ -260,6 +298,8 @@ private
   procedure FLIclear(var data: FLIdata);
   procedure IFLIclear(var data: IFLIdata);
   procedure FFLIclear(var data: FFLIdata);
+  procedure FFLI2clear(var data: FFLI2data);
+  procedure DRAZFLIclear(var data: DRAZFLIdata);
 
   procedure MULTICOLORshow(data: MULTIdata; ca: TCanvas);
   procedure HIRESshow(data: HIRESdata; ca: TCanvas);
@@ -271,6 +311,8 @@ private
   procedure FLIshow(fli: FLIdata; ca: TCanvas; mode: TC64FileType);
   procedure IFLIshow(ifli: IFLIdata; ca: TCanvas);
   procedure FFLIshow(ffli: FFLIdata; ca: TCanvas);
+  procedure FFLI2show(ffli2: FFLI2data; ca: TCanvas);
+  procedure DRAZFLIshow(drazfli: DRAZFLIdata; ca: TCanvas);
 
   procedure KOALAload(ca: TCanvas);
   procedure KOALAload_RLE(ca: TCanvas);
@@ -288,13 +330,14 @@ private
   procedure HIRESloadDDL_RLE(ca: TCanvas);
   procedure HIRESloadISH(ca: TCanvas);
   procedure AMICAload(ca: TCanvas);
-  procedure AMICAunpack(i_buff: TAmicaBuff; var o_buff: TAmicaBuff; o_size: integer);
   procedure LOGOload(ca: TCanvas);
   procedure FNTload(ca: TCanvas);
   procedure FNTBload(ca: TCanvas);
   procedure MOBload(ca: TCanvas);
   procedure AFLIload(ca: TCanvas);
   procedure GUNFLIload(ca: TCanvas);
+  procedure FUNFLIload(ca: TCanvas);
+  procedure DRLload(ca: TCanvas);
   procedure FLIload(ca: TCanvas);
 public
   constructor Create;
@@ -387,10 +430,11 @@ const
 
   pow: array[0..7] of byte = (1, 2, 4, 8, 16, 32, 64, 128);
 
+  TOP_BUFF = high(TAmicaBuff);
+
 
 
 //RLE: Escape code / 1 byte value / 1 byte count
-//todo: rewrite clean
 procedure unpackRLE_V_C(esc: byte; i_buff: TAmicaBuff; i_size: integer; var o_buff: TAmicaBuff; o_size: integer);
 var i, x, a: byte;
     _FBC, _FDE: integer;
@@ -415,7 +459,36 @@ begin
       if (_FBC >= o_size) or (_FDE >= i_size) then exit;
       o_buff[_FBC] := a; INC(_FBC);
     end;
-  until false; //can it hung?
+  until false; //can it hung? coz if it can it will
+end;
+
+//'AMICA PAINT' UNPACKER / RLE: Escape code / 1 byte count / 1 byte value
+procedure AMICAunpack(skip: integer; esc: byte; i_buff: TAmicaBuff; i_size: integer; var o_buff: TAmicaBuff; o_size: integer);
+var i, x, a: byte;
+    _FBC, _FDE: integer;
+begin
+  _FBC := 0;
+  _FDE := skip;
+  repeat
+    a := i_buff[_FDE]; INC(_FDE);
+    if a = esc then
+    begin
+      a := i_buff[_FDE]; INC(_FDE);
+      if a = 0 then exit;
+      x := a;
+      a := i_buff[_FDE]; INC(_FDE);
+      for i := 1 to x do
+      begin
+        if (_FBC >= o_size) or (_FDE >= i_size) then exit;
+        o_buff[_FBC] := a; INC(_FBC);
+      end;
+    end
+    else
+    begin
+      if (_FBC >= o_size) or (_FDE >= i_size) then exit;
+      o_buff[_FBC] := a; INC(_FBC);
+    end;
+  until false; //can it hung? coz if it can it will
 end;
 
 //---
@@ -565,8 +638,14 @@ begin
 
   if (e = '.IFLI') or (e = '.IFL') then result := C64_IFLI;
 
+  //Gunpaint (pc-ext: .gun,.ifl)
   if (e = '.GUN') then result := C64_GUN_IFLI;
 
+  //Funpaint 2 (by Manfred Trenz) (pc-ext: .fp2;.fun)
+  if (e = '.FUN') or (e = '.FP2') then result := C64_FUN;
+
+  //Drazlace (pc-ext: .drl) 
+  if (e = '.DRL') then result := C64_DRL;
 
 (* lookup more-to-implement folder for:
 
@@ -576,17 +655,6 @@ $2000 - $3f3f 	Bitmap 1
 $4400 - $47e7 	Screen RAM 1
 $4800 - $4be7 	Screen RAM 2
 $6000 - $7f3f 	Bitmap 2
-
-Drazlace (pc-ext: .drl) -- TESTPACK.Drl
-"Crippled" Multicolor Interlaced
-2 x Multicolor Bitmap, shared Screen RAM and Color RAM
-load address: $5800 - $9f3f
-$5800 - $5be7 	Color RAM
-$5c00 - $5fe7 	Screen RAM
-$6000 - $7f3f 	Bitmap 1
-$7f40 	Background
-$7f42 	$d016 flag
-$8000 - $9f3f 	Bitmap 2
 
 Hires Manager (by Cosmos) (pc-ext: .him) -- logo.him / logo1.him
 Unpacked format:
@@ -598,20 +666,6 @@ Packed format:
 load address: $4000
 $4000 - $4001 	Pointer to end of packed data
 $4002 - $4003 	Pointer to end of unpacked data + 1 ($7ff2)
-
-Funpaint 2 (by Manfred Trenz) (pc-ext: .fp2;.fun) -- KATER.fp2 / appbug.fun / Valsary.fun / Viking.fun
-load address: $3ff0 - $c38b
-$3ff0 - $3fff 	'FUNPAINT (MT) ' NB: space
-$3ffe 	Flag: packed if non-zero
-$3fff 	Escape byte for unpacking
-$4000 - $5fe7 	Screen RAMs 1
-$6000 - $7f3f 	Bitmap 1
-$7f48 - $7fab 	100 x $d021 color
-$8000 - $83e7 	Color RAM
-$83e8 - $a3e7 	Screen RAMs 2
-$a3e8 - $c327 	Bitmap 2
-$c328 - $c38b 	100 x $d021 color
-RLE sequences are ESCAPE,COUNT,BYTE.
 *)
 end;
 
@@ -705,6 +759,7 @@ begin
   for i := 0 to 8191 do data.chrmem1[i] := 0;
   for i := 0 to 8191 do data.chrmem2[i] := 0;
   for i := 0 to 1023 do data.colmem[i] := 0;
+  data.bg := 0;
 end;
 
 procedure TC64.FFLIclear(var data: FFLIdata);
@@ -716,6 +771,27 @@ begin
   for i := 0 to 1023 do data.colmem[i] := 0;
   for i := 0 to 255 do data.bgmem1[i] := 0;
   for i := 0 to 255 do data.bgmem2[i] := 0;
+end;
+
+procedure TC64.FFLI2clear(var data: FFLI2data);
+var i: integer;
+begin
+  for i := 0 to 8191 do data.gfxmem1[i] := 0;
+  for i := 0 to 8191 do data.gfxmem2[i] := 0;
+  for i := 0 to 8191 do data.chrmem1[i] := 0;
+  for i := 0 to 8191 do data.chrmem2[i] := 0;
+  for i := 0 to 1023 do data.colmem[i] := 0;
+  for i := 0 to 255 do data.bgmem[i] := 0;
+end;
+
+procedure TC64.DRAZFLIclear(var data: DRAZFLIdata);
+var i: integer;
+begin
+  for i := 0 to 7999 do data.gfxmem1[i] := 0;
+  for i := 0 to 7999 do data.gfxmem2[i] := 0;
+  for i := 0 to 999 do data.chrmem[i] := 0;
+  for i := 0 to 999 do data.colmem[i] := 0;
+  data.bgcol := 0;
 end;
 
 //---
@@ -965,9 +1041,11 @@ end;
 
 //FLI - based on C code from C64Gfx by Pasi 'Albert' Ojala
 
-procedure TC64.FLIshow(fli: FLIdata; ca: TCanvas; mode: TC64FileType);
 const bitmask: array[0..3] of byte = ($c0, $30, $0c, $03);
       bitshift: array[0..3] of byte = ($40, $10, $04, $01);
+
+      
+procedure TC64.FLIshow(fli: FLIdata; ca: TCanvas; mode: TC64FileType);
 var x, y, ind, pos, bits, ysize(*, xsize*): integer;
     a, b: byte;
 begin
@@ -1037,8 +1115,6 @@ begin
 end;
 
 procedure TC64.IFLIshow(ifli: IFLIdata; ca: TCanvas);
-const bitmask: array[0..3] of byte = ($c0, $30, $0c, $03);
-      bitshift: array[0..3] of byte = ($40, $10, $04, $01);
 var x, y, ind, pos, bits, memind: integer;
     a0, a1: byte;
     c0, c1: byte;
@@ -1062,13 +1138,13 @@ begin
 	    a0 := (ifli.gfxmem1[pos] and bitmask[bits]) div bitshift[bits];
 	    a1 := (ifli.gfxmem2[pos] and bitmask[bits]) div bitshift[bits];
       case a0 of
-        0: c0 := 0;
+        0: c0 := ifli.bg; //note: not all formats use this, sometimes it'll be 0
         1: c0 := ifli.chrmem1[memind] div 16;
         2: c0 := ifli.chrmem1[memind] mod 16;
         3: c0 := ifli.colmem[ind] and $0f;
       end;
       case a1 of
-        0: c1 := 0;
+        0: c1 := ifli.bg; //note: not all formats use this, sometimes it'll be 0
         1: c1 := ifli.chrmem2[memind] div 16;
         2: c1 := ifli.chrmem2[memind] mod 16;
         3: c1 := ifli.colmem[ind] and $0f;
@@ -1092,8 +1168,6 @@ begin
 end;
 
 procedure TC64.FFLIshow(ffli: FFLIdata; ca: TCanvas);
-const bitmask: array[0..3] of byte = ($c0, $30, $0c, $03);
-      bitshift: array[0..3] of byte = ($40, $10, $04, $01);
 var x, y, ind, pos, bits, memind: integer;
     a0, c0, c1: byte;
 begin
@@ -1131,6 +1205,112 @@ begin
   end;
 end;
 
+procedure TC64.FFLI2show(ffli2: FFLI2data; ca: TCanvas); //FFLI~IFLI
+var x, y, ind, pos, bits, memind: integer;
+    a0, a1: byte;
+    c0, c1: byte;
+    buffer: array[0..3*321] of byte;
+begin
+  if not assigned(ca) then exit;
+  
+  c0 := 0;
+  c1 := 0;
+  for y := 0 to 200-1 do
+  begin
+    buffer[0] := 0;
+    buffer[1] := 0;
+    buffer[2] := 0;
+    for x := 0 to 160-1 do
+    begin
+      ind := x div 4 + (y div 8)*40;  //color memory index
+      pos := (y mod 8) + (x div 4)*8 + (y div 8)*320;  //gfx memory byte
+      bits := (x mod 4);  //bit numbers
+      memind := 1024*(y mod 8) + ind;
+	    a0 := (ffli2.gfxmem1[pos] and bitmask[bits]) div bitshift[bits];
+	    a1 := (ffli2.gfxmem2[pos] and bitmask[bits]) div bitshift[bits];
+      case a0 of
+        0: c0 := ffli2.bgmem[y];
+        1: c0 := ffli2.chrmem1[memind] div 16;
+        2: c0 := ffli2.chrmem1[memind] mod 16;
+        3: c0 := ffli2.colmem[ind] and $0f;
+      end;
+      case a1 of
+        0: c1 := ffli2.bgmem[y];
+        1: c1 := ffli2.chrmem2[memind] div 16;
+        2: c1 := ffli2.chrmem2[memind] mod 16;
+        3: c1 := ffli2.colmem[ind] and $0f;
+      end;
+
+	    buffer[6*x+0] := (buffer[6*x+0] + GetC64ColorR(c0)) div 2;
+	    buffer[6*x+1] := (buffer[6*x+1] + GetC64ColorG(c0)) div 2;
+	    buffer[6*x+2] := (buffer[6*x+2] + GetC64ColorB(c0)) div 2;
+
+	    buffer[6*x+3] := (GetC64ColorR(c1) + GetC64ColorR(c0)) div 2;
+	    buffer[6*x+4] := (GetC64ColorG(c1) + GetC64ColorG(c0)) div 2;
+	    buffer[6*x+5] := (GetC64ColorB(c1) + GetC64ColorB(c0)) div 2;
+
+	    buffer[6*x+6] := GetC64ColorR(c1);
+	    buffer[6*x+7] := GetC64ColorG(c1);
+	    buffer[6*x+8] := GetC64ColorB(c1);
+    end;
+    for x := 0 to 320-1 do
+      ca.Pixels[x, y] := RGB(buffer[x*3+0], buffer[x*3+1], buffer[x*3+2]);
+  end;
+end;
+
+procedure TC64.DRAZFLIshow(drazfli: DRAZFLIdata; ca: TCanvas);
+var x, y, ind, pos, bits, memind: integer;
+    a0, a1: byte;
+    c0, c1: byte;
+    buffer: array[0..3*321] of byte;
+begin
+  if not assigned(ca) then exit;
+
+  c0 := 0;
+  c1 := 0;
+  for y := 0 to 200-1 do
+  begin
+    buffer[0] := 0;
+    buffer[1] := 0;
+    buffer[2] := 0;
+    for x := 0 to 160-1 do
+    begin
+      ind := x div 4 + (y div 8)*40;  //color memory index
+      pos := (y mod 8) + (x div 4)*8 + (y div 8)*320;  //gfx memory byte
+      bits := (x mod 4);  //bit numbers
+      memind := ind;
+	    a0 := (drazfli.gfxmem1[pos] and bitmask[bits]) div bitshift[bits];
+	    a1 := (drazfli.gfxmem2[pos] and bitmask[bits]) div bitshift[bits];
+      case a0 of
+        0: c0 := drazfli.bgcol;
+        1: c0 := drazfli.chrmem[memind] div 16;
+        2: c0 := drazfli.chrmem[memind] mod 16;
+        3: c0 := drazfli.colmem[ind] and $0f;
+      end;
+      case a1 of
+        0: c1 := drazfli.bgcol;
+        1: c1 := drazfli.chrmem[memind] div 16;
+        2: c1 := drazfli.chrmem[memind] mod 16;
+        3: c1 := drazfli.colmem[ind] and $0f;
+      end;
+
+	    buffer[6*x+0] := (buffer[6*x+0] + GetC64ColorR(c0)) div 2;
+	    buffer[6*x+1] := (buffer[6*x+1] + GetC64ColorG(c0)) div 2;
+	    buffer[6*x+2] := (buffer[6*x+2] + GetC64ColorB(c0)) div 2;
+
+	    buffer[6*x+3] := (GetC64ColorR(c1) + GetC64ColorR(c0)) div 2;
+	    buffer[6*x+4] := (GetC64ColorG(c1) + GetC64ColorG(c0)) div 2;
+	    buffer[6*x+5] := (GetC64ColorB(c1) + GetC64ColorB(c0)) div 2;
+
+	    buffer[6*x+6] := GetC64ColorR(c1);
+	    buffer[6*x+7] := GetC64ColorG(c1);
+	    buffer[6*x+8] := GetC64ColorB(c1);
+    end;
+    for x := 0 to 320-1 do
+      ca.Pixels[x, y] := RGB(buffer[x*3+0], buffer[x*3+1], buffer[x*3+2]);
+  end;
+end;
+
 //---
 
 procedure TC64.KOALAload(ca: TCanvas);
@@ -1149,7 +1329,6 @@ begin
 end;
 
 procedure TC64.KOALAload_RLE(ca: TCanvas);
-const TOP = high(TAmicaBuff);
 var data: MULTIdata;
     i_buff, o_buff: TAmicaBuff;
     i, g: word;
@@ -1157,12 +1336,12 @@ begin
   if not assigned(ca) then exit;
   MULTICOLORclear(data);
   g := 0;
-  while not eof(f) and (g < TOP+1) do
+  while not eof(f) and (g < TOP_BUFF+1) do
   begin
     read(f, i_buff[g]);
     inc(g);
   end;
-  for i := 0 to TOP do o_buff[i] := 0;
+  for i := 0 to TOP_BUFF do o_buff[i] := 0;
   unpackRLE_V_C($FE, i_buff, g, o_buff, sizeof(TAmicaBuff));
 
   for g := 0 to 7999 do data.bitmap[g] := o_buff[g];  
@@ -1388,7 +1567,6 @@ begin
 end;
 
 procedure TC64.HIRESloadDDL_RLE(ca: TCanvas);
-const TOP = high(TAmicaBuff);
 var data: HIRESdata;
     i_buff, o_buff: TAmicaBuff;
     i, g: word;
@@ -1396,12 +1574,12 @@ begin
   if not assigned(ca) then exit;
   HIRESclear(data);
   g := 0;
-  while not eof(f) and (g < TOP+1) do
+  while not eof(f) and (g < TOP_BUFF+1) do
   begin
     read(f, i_buff[g]);
     inc(g);
   end;
-  for i := 0 to TOP do o_buff[i] := 0;
+  for i := 0 to TOP_BUFF do o_buff[i] := 0;
   unpackRLE_V_C($FE, i_buff, g, o_buff, sizeof(TAmicaBuff));
   for g := 0 to 999 do data.ink[g] := o_buff[g];
   for g := 0 to 7999 do data.bitmap[g] := o_buff[1000+(7+8+8+1)+g];
@@ -1433,70 +1611,26 @@ procedure TC64.AMICAload(ca: TCanvas);
 var koala: MULTIdata;
     i_buff, o_buff: TAmicaBuff;
     b, i: integer;
-//    c: byte;
 begin
   if not assigned(ca) then exit;
 
   b := 0;
-  while not eof(f) and (b < 32768) do
+  while not eof(f) and (b < TOP_BUFF+1) do
   begin
-//    read(f, c);
-//    i_buff[b] := c;
     read(f, i_buff[b]);
     inc(b);
   end;
 
-  for i := 0 to high(o_buff) do o_buff[i] := 0;
-  AMICAunpack(i_buff, o_buff, sizeof(TAmicaBuff));
+  for i := 0 to TOP_BUFF do o_buff[i] := 0;
+  AMICAunpack(2, $c2, i_buff, b, o_buff, sizeof(TAmicaBuff));
 
   for i := 0 to 8000-1 do koala.bitmap[i] := o_buff[i]; //320*200/8 = 8000
-  for i := 0 to 1000-1 do koala.ink1[i] := o_buff[8000+i];   
+  for i := 0 to 1000-1 do koala.ink1[i] := o_buff[8000+i];
   for i := 0 to 1000-1 do koala.ink2[i] := o_buff[8000+1000+i]; //$D800
   koala.backGr := o_buff[$F710-$c000] and $0f;
 
   MULTICOLORshow(koala, ca);
 end;
-
-//------------------------------------------------------------------------------
-//NOTE: that used to be old amica.pas file [this remark will disappear]
-//'AMICA PAINT' C-64 FORMAT SCREEN UNPACKER
-//FROM MY ORIGINAL 'SHOWPIX' RESOURCED BY MONSTER/GDC (c)1992
-//6502 ASM -> PAS coversion (c)2009 MONSTER/GDC, Noniewicz.com
-//this code was kinda lame .. in process of fixing
-//created: 20091230
-//updated: 20171029 (nice(r) code, as part of this object)
-//updated: 20171113 cleanup#1 no labels, took years but better late than never
-//------------------------------------------------------------------------------
-
-procedure TC64.AMICAunpack(i_buff: TAmicaBuff; var o_buff: TAmicaBuff; o_size: integer);
-var i, x, a: byte;
-    _FBC, _FDE: integer;
-begin
-  _FBC := 0;
-  _FDE := 0+2;
-  repeat
-    a := i_buff[_FDE]; INC(_FDE);
-    if a = $c2 then
-    begin
-      a := i_buff[_FDE]; INC(_FDE);
-      if a = 0 then exit;
-      x := a;
-      a := i_buff[_FDE]; INC(_FDE);
-      for i := 1 to x do
-      begin
-        if (_FBC >= o_size) (* or (_FDE >= i_size) *) then exit;
-        o_buff[_FBC] := a; INC(_FBC);
-      end;
-    end
-    else
-    begin
-      if (_FBC >= o_size) (* or (_FDE >= i_size) *) then exit;
-      o_buff[_FBC] := a; INC(_FBC);
-    end;
-  until false; //can it hung? coz if it can it will
-end;
-
-//---
 
 procedure TC64.LOGOload(ca: TCanvas);
 var data: LOGOdata;
@@ -1618,7 +1752,7 @@ begin
 end;
 
 (*
-Gunpaint (pc-ext: .gun,.ifl) -- Gunpaint.gun / MECENARI.gun
+Gunpaint (pc-ext: .gun,.ifl) 
 load address: $4000 - $c340
 $4000 - $5fe7 	Screen RAMs 1
 $43e8 - $43f7 	header db 'GUNPAINT (JZ) '
@@ -1660,6 +1794,132 @@ begin
   IFLIshow(ifli, ca); //C64_GUN_IFLI
 end;
 
+(*
+Funpaint 2 (by Manfred Trenz) (pc-ext: .fp2;.fun)
+load address: $3ff0 - $c38b
+$3ff0 - $3fff 	'FUNPAINT (MT) ' NB: space
+$3ffe 	Flag: packed if non-zero
+$3fff 	Escape byte for unpacking 
+$4000 - $5fe7 	Screen RAMs 1
+$6000 - $7f3f 	Bitmap 1
+$7f48 - $7fab 	100 x $d021 color
+$8000 - $83e7 	Color RAM
+$83e8 - $a3e7 	Screen RAMs 2
+$a3e8 - $c327 	Bitmap 2
+$c328 - $c38b 	100 x $d021 color
+RLE sequences are ESCAPE,COUNT,BYTE
+*)
+procedure TC64.FUNFLIload(ca: TCanvas);
+var ffli2: FFLI2data;
+    i_buff, o_buff: TAmicaBuff;
+    none, flag, esc: byte;
+    i: integer;
+begin
+  if not assigned(ca) then exit;
+
+  FFLI2clear(ffli2);
+  read(f, none, none); //total max: 33694
+
+  for i := 0 to 14-1 do read(f, none); //skip header
+  read(f, flag);
+  read(f, esc);
+
+  if flag <> 0 then  //packed
+  begin
+    for i := 0 to TOP_BUFF do o_buff[i] := 0;
+    i := 0;
+    while not eof(f) and (i < TOP_BUFF+1) do
+    begin
+      read(f, i_buff[i]);
+      inc(i);
+    end;
+    AMICAunpack(0, esc, i_buff, i, o_buff, sizeof(TAmicaBuff));
+    //todo: repack
+    for i := 0 to 8192-1 do ffli2.chrmem1[i] := o_buff[i];
+    for i := 0 to 8008-1 do ffli2.gfxmem1[i] := o_buff[8192+i];
+    for i := 0 to 100-1 do ffli2.bgmem[i] := o_buff[8192+8008+i];
+    for i := 0 to 1000-1 do ffli2.colmem[i] := o_buff[8192+8008+100+84+i];
+    for i := 0 to 8192-1 do ffli2.chrmem2[i] := o_buff[8192+8008+100+84+1000+i];
+    for i := 0 to 8000-1 do ffli2.gfxmem2[i] := o_buff[8192+8008+100+84+1000+8192+i];
+    for i := 0 to 100-1 do ffli2.bgmem[i+100] := o_buff[8192+8008+100+84+1000+8192+8000+i];
+  end
+  else
+  begin
+    for i := 0 to 8192-1 do read(f, ffli2.chrmem1[i]);
+    for i := 0 to 8008-1 do read(f, ffli2.gfxmem1[i]);
+    for i := 0 to 100-1 do read(f, ffli2.bgmem[i]);
+    for i := 0 to 84-1 do read(f, none);
+    for i := 0 to 1000-1 do read(f, ffli2.colmem[i]);
+    for i := 0 to 8192-1 do read(f, ffli2.chrmem2[i]);
+    for i := 0 to 8000-1 do read(f, ffli2.gfxmem2[i]);
+    for i := 0 to 100-1 do read(f, ffli2.bgmem[i+100]);
+  end;
+
+  FFLI2show(ffli2, ca); //C64_FUN
+end;
+
+(*
+Drazlace (pc-ext: .drl)
+"Crippled" Multicolor Interlaced - 2 x Multicolor Bitmap, shared Screen RAM and Color RAM
+load address: $5800 - $9f3f
+$5800 - $5be7 	Color RAM
+$5c00 - $5fe7 	Screen RAM
+$6000 - $7f3f 	Bitmap 1
+$7f40 	Background
+$7f42 	$d016 flag
+$8000 - $9f3f 	Bitmap 2
+*)
+procedure TC64.DRLload(ca: TCanvas);
+var drazfli: DRAZFLIdata;
+    i_buff, o_buff: TAmicaBuff;
+    none, esc: byte;
+    tmp: array[0..12] of byte;
+    i: integer;
+    hd: string;
+begin
+  if not assigned(ca) then exit;
+
+  DRAZFLIclear(drazfli);
+  read(f, none, none); //18239 total max
+
+  //packed file starts with header 'DRAZLACE! 1.0' and escape byte. RLE: ESCAPE,COUNT,BYTE
+  hd := '';
+  for i := 0 to 12 do begin read(f, tmp[i]); hd := hd + chr(tmp[i]); end;
+
+  if hd = 'DRAZLACE! 1.0' then //packed
+  begin
+    read(f, esc);
+    for i := 0 to TOP_BUFF do o_buff[i] := 0;
+    i := 0;
+    while not eof(f) and (i < TOP_BUFF+1) do
+    begin
+      read(f, i_buff[i]);
+      inc(i);
+    end;
+    AMICAunpack(0, esc, i_buff, i, o_buff, sizeof(TAmicaBuff));
+    for i := 0 to 1024-1 do drazfli.colmem[i] := o_buff[i];
+    for i := 0 to 1024-1 do drazfli.chrmem[i] := o_buff[1024+i];
+    for i := 0 to 8000-1 do drazfli.gfxmem1[i] := o_buff[1024+1024+i];
+    drazfli.bgcol := o_buff[1024+1024+8000+0];
+    for i := 0 to 8000-1 do drazfli.gfxmem2[i] := o_buff[1024+1024+8000+1+1+1+189+i];
+  end
+  else
+  begin
+    seek(f, 0);
+    read(f, none, none);
+    for i := 0 to 1024-1 do read(f, drazfli.colmem[i]);   //Color RAM
+    for i := 0 to 1024-1 do read(f, drazfli.chrmem[i]);  //Screen RAMs
+    for i := 0 to 8000-1 do read(f, drazfli.gfxmem1[i]);  //Bitmap 1
+    read(f, drazfli.bgcol); //bg
+    read(f, none);
+    read(f, none); //$d016 flag - what to do with it? ignore for now
+    for i := 0 to 189-1 do read(f, none);
+    for i := 0 to 8000-1 do read(f, drazfli.gfxmem2[i]);  //Bitmap 2
+  end;
+
+  DRAZFLIshow(drazfli, ca); //C64_DRL
+end;
+
 procedure TC64.FLIload(ca: TCanvas);
 var fli: FLIdata;
     ifli: IFLIdata;
@@ -1676,7 +1936,7 @@ begin
 
   read(f, temp[0], temp[1]);
 
-	if (temp[0] = 0) and (temp[1] = $40) then //AFLI file
+	if ((temp[0] = 0) and (temp[1] = $40)) then //AFLI file
   begin
 //    showmessage('DEBUG: AFLI detected');
     for j := 0 to 7 do
@@ -1825,7 +2085,7 @@ begin
 
 //note: gunpaint - separate code
 
-  if (temp[0] = $0) and (temp[1] = $3f) then //IFLI
+  if ((temp[0] = $0) and (temp[1] = $3f)) then //IFLI
   begin
     read(f, temp[2]);
     if (temp[2] = ord('I')) then //IFLI file
@@ -1836,9 +2096,7 @@ begin
       for i := 0 to 8192-1 do read(f, ifli.gfxmem1[i]);
       for i := 0 to 1024-1 do read(f, ifli.colmem[i]);
       for i := 0 to 8192-1 do read(f, ifli.chrmem2[i]);
-      for i := 0 to 8192-1 do read(f, ifli.gfxmem2[i]); //...
-	    //if (i) ok else fprintf(stderr, "Short file!\n");
-
+      for i := 0 to 8192-1 do read(f, ifli.gfxmem2[i]);
       IFLIshow(ifli, ca);
     end
     else
@@ -1905,13 +2163,13 @@ end;
 
 function TC64.LoadFliToBitmap(FileName: string; ca: TCanvas; mode: TC64FileType): integer;
 begin
-  if mode = C64_HFC then
-    result := GenericLoader(FileName, AFLIload, ca, C64_HFC)
-  else
-    if mode = C64_GUN_IFLI then
-      result := GenericLoader(FileName, GUNFLIload, ca, C64_GUN_IFLI)
-    else
-      result := GenericLoader(FileName, FLIload, ca, C64_FLI);
+  case mode of
+    C64_HFC:      result := GenericLoader(FileName, AFLIload, ca, C64_HFC);
+    C64_GUN_IFLI: result := GenericLoader(FileName, GUNFLIload, ca, C64_GUN_IFLI);
+    C64_FUN:      result := GenericLoader(FileName, FUNFLIload, ca, C64_FUN);
+    C64_DRL:      result := GenericLoader(FileName, DRLload, ca, C64_DRL);
+    else          result := GenericLoader(FileName, FLIload, ca, C64_FLI);
+  end;
 end;
 
 //---
@@ -1948,7 +2206,9 @@ begin
     C64_IFLI,
     C64_FFLI,
     C64_HFC,
-    C64_GUN_IFLI: result := LoadFliToBitmap(FileName, ca, mode);
+    C64_GUN_IFLI,
+    C64_FUN,
+    C64_DRL:      result := LoadFliToBitmap(FileName, ca, mode);
     else
       result := -1;
   end;
