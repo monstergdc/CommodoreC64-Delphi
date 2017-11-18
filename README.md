@@ -1,6 +1,6 @@
 # CommodoreC64-Delphi
 Delphi/Lazarus class to manipulate Commodore C-64 graphics data
-with demo application, now crossplatform, tested under Windows and Linux (Debian).
+with demo application, crossplatform, tested under Windows and Linux (Debian).
 
 Supported formats include:
 - Koala Painter 2 (by AUDIO LIGHT) (pc-ext: .koa;.kla;.gg)
@@ -18,6 +18,7 @@ Supported formats include:
 - Gunpaint (pc-ext: .gun,.ifl)
 - Funpaint 2 (by Manfred Trenz) (pc-ext: .fp2;.fun)
 - Drazlace (pc-ext: .drl)
+- True Paint (by Fatum) (pc-ext: .mci)
 - FFLI
 - some other *FLI formats -- IN PROGRESS 
 - 8x8 and 16x16 font (hires/multicolor) - YET UNFINISHED

@@ -5,7 +5,7 @@ unit c64;
 {$ENDIF}
 
 //------------------------------------------------------------------------------
-//Commodore C-64 GFX files manipulation Delphi (7+) / Lazarus class, v1.43
+//Commodore C-64 GFX files manipulation Delphi (7+) / Lazarus class, v1.44
 //Crossplatform (Delphi 7+ / Lazarus on Win32, Lazarus on Linux)
 //(c)1994, 1995, 2009-2011, 2017 Noniewicz.com, Jakub Noniewicz aka MoNsTeR/GDC
 //E-mail: monster@Noniewicz.com
@@ -15,7 +15,7 @@ unit c64;
 //based on my own earlier work (Koala/ArtStudio/Amica/Fonts/Sprites)
 //and this:
 //http://codebase64.org/doku.php?id=base:c64_grafix_files_specs_list_v0.03
-//FLI code - loosely based on C code from C64Gfx by Pasi 'Albert' Ojala
+//(some) FLI code - loosely based on C code from C64Gfx by Pasi 'Albert' Ojala
 //------------------------------------------------------------------------------
 //Supported formats:
 //- Koala Painter 2 (by AUDIO LIGHT) (pc-ext: .koa;.kla;.gg)
@@ -33,6 +33,7 @@ unit c64;
 //- Gunpaint (pc-ext: .gun,.ifl)
 //- Funpaint 2 (by Manfred Trenz) (pc-ext: .fp2;.fun)
 //- Drazlace (pc-ext: .drl)
+//- True Paint (by Fatum) (pc-ext: .mci)
 //- some other *FLI formats -- IN PROGRESS 
 //- 8x8 and 16x16 font (hires/multicolor) - YET UNFINISHED
 //- sprites (hires/multicolor, also font sprited) - YET UNFINISHED
@@ -78,12 +79,15 @@ unit c64;
 //updated: 20171118 1245-1315
 //updated: 20171118 1405-1415
 //updated: 20171118 1425-1540
-//updated: 20171118 1615-1800
+//updated: 20171118 1615-1820
+// = 2140 min = ~35.5h (not counting 1994-1995 and 2009-2011)
+//updated: 20171118 1820-1955
 
 {todo:
 # MAIN:
-.- [!] more *FLI formats
-.- logo - hires v multi - LOGOshow(hires)
+- Hires-Interlace v1.0 (.hlf)
+- Hires Manager (.him)
+.- logo - hires v multi - LOGOshow(hires) / also .lp2
 # NEXT:
 - [!] more even more exotic formats
 == lookup again https://www.c64-wiki.com/wiki/Graphics_Modes
@@ -91,28 +95,29 @@ unit c64;
 == NUFLI - WTF is that? (there is more)
 == IFLI from $2000 ?
 == AFLI from $6c73 ?
-== mcs / mci ?
+== mcp - Truepaint ?
 - separate load and canvas pack (rerender w/o load)
 - [!] pack back to C64 formats and write (colormap, dither?)
-- [!] recode one c64 fmt to another (m-m, h-h, h*m-*m*h)
+- [!] recode one c64 fmt to another (m-m, h-h, h*m-*m*h, fli?)
 # LATER/MAYBE:
-- cleanup: commonize *FLI code
-- cleanup: wrap all FLI data records?
+- cleanup: commonize FLI code
+- cleanup: wrap all FLI data records into one generic?
 - cleanup: tabeliarize format structures + one call to load them all
 - cleanup: "clearers" - one, fill by sizeof+memset-like ?
 - fnt/fntb/mob - get given one/range | also output really all
 - implement some SaveToStream / LoadFromStream ?
-- raw data output?
+- raw data output (24bit RGB .raw)?
 - commonize demo code d7/laz
 - godot.jj - see why differs from congo rendering?
 - fun/fp2 - see why differs (cherry, valsary)?
+- MCIshow - make sure that it really renders properly
 - prep standarized test files (so all are the same)
 - mob - anim?
 - add misc limit checks?
 - add deeper byte format detection
 - ZX analogue (6144/768/6912)?
 - even go xnView / recoil / congo / view64 ?
-- C code version (so more portable) ?
+- C / C++ / C# / JS / Java versions (so more portable) ?
 }
 
 {CHANGELOG:
@@ -181,7 +186,9 @@ unit c64;
 - added support for Drazlace (pc-ext: .drl) [packed and not]
 - code cleanup: RLE / amica unpack 
 - misc minor changes
-- ?
+# v1.44
+- added support for True Paint (by Fatum) (pc-ext: .mci)
+- misc
 }
 
 interface
@@ -258,6 +265,14 @@ type
                  colmem: array[0..1024-1] of byte;
                  bgcol: byte;
                end;
+     MCIFLIdata = record //True Paint FLI 
+                 gfxmem1: array[0..8000-1] of byte;
+                 gfxmem2: array[0..8000-1] of byte;
+                 chrmem1: array[0..1000-1] of byte;
+                 chrmem2: array[0..1000-1] of byte;
+                 colmem: array[0..1024-1] of byte;
+                 bgcol: byte;
+               end;
 
 
 TC64Loader = procedure(ca: TCanvas) of object;
@@ -276,7 +291,7 @@ TC64FileType = (C64_UNKNOWN,
                 C64_AMICA,
                 C64_LOGO, C64_FNT, C64_FNTB, C64_MOB, C64_MBF,
                 C64_FLI, C64_AFLI, C64_BFLI, C64_IFLI, C64_FFLI,
-                C64_HFC, C64_GUN_IFLI, C64_FUN, C64_DRL
+                C64_HFC, C64_GUN_IFLI, C64_FUN, C64_DRL, C64_MCI
                 );
 
 TC64 = class(TObject)
@@ -301,6 +316,7 @@ private
   procedure FFLIclear(var data: FFLIdata);
   procedure FFLI2clear(var data: FFLI2data);
   procedure DRAZFLIclear(var data: DRAZFLIdata);
+  procedure MCIFLIclear(var data: MCIFLIdata);
 
   procedure MULTICOLORshow(data: MULTIdata; ca: TCanvas);
   procedure HIRESshow(data: HIRESdata; ca: TCanvas);
@@ -314,6 +330,7 @@ private
   procedure FFLIshow(ffli: FFLIdata; ca: TCanvas);
   procedure FFLI2show(ffli2: FFLI2data; ca: TCanvas);
   procedure DRAZFLIshow(drazfli: DRAZFLIdata; ca: TCanvas);
+  procedure MCIshow(data: MCIFLIdata; ca: TCanvas);
 
   procedure KOALAload(ca: TCanvas);
   procedure KOALAload_RLE(ca: TCanvas);
@@ -339,6 +356,7 @@ private
   procedure GUNFLIload(ca: TCanvas);
   procedure FUNFLIload(ca: TCanvas);
   procedure DRLload(ca: TCanvas);
+  procedure MCIload(ca: TCanvas);
   procedure FLIload(ca: TCanvas);
 public
   constructor Create;
@@ -359,7 +377,7 @@ public
   function LoadMobToBitmap(FileName: string; ca: TCanvas): integer;
   function LoadFliToBitmap(FileName: string; ca: TCanvas; mode: TC64FileType): integer;
 
-  function LoadC64ToBitmap(FileName: string; ca: TCanvas): integer;  
+  function LoadC64ToBitmap(FileName: string; ca: TCanvas): integer;
 published
   property LastError: string read FLastError;
   property Palette: TC64Pallete read FPalette write FPalette;
@@ -371,6 +389,10 @@ end;
 implementation
 
 const
+  VER_MAJOR = 1;
+  VER_MINOR = 44;
+
+
 //0..15 = black,white,red,cyan,magenta(purple),green,blue,yellow
 //orange,brown(lt.red),pink,dk.gray,gray,lt.green,lt.blue,lt.gray
 
@@ -428,14 +450,9 @@ const
       ($00,$fe,$1a,$e6,$1a,$d2,$1b,$f6, $41,$33,$4a,$45,$74,$fe,$53,$a7),
       ($00,$fc,$24,$c6,$e2,$1e,$ae,$0a, $04,$04,$57,$40,$6f,$59,$fe,$a2));
 
-
-
   pow: array[0..7] of byte = (1, 2, 4, 8, 16, 32, 64, 128);
 
   TOP_BUFF = high(TAmicaBuff);
-
-  VER_MAJOR = 1;
-  VER_MINOR = 43;
 
 
 
@@ -447,21 +464,24 @@ begin
   _FBC := 0;
   _FDE := 0+2; //skip load addr (2 bytes)
   repeat
+    if (_FDE >= i_size) then exit;
     a := i_buff[_FDE]; INC(_FDE);
     if a = esc then
     begin
+      if (_FDE >= i_size) then exit;
       x := i_buff[_FDE]; INC(_FDE);
+      if (_FDE >= i_size) then exit;
       a := i_buff[_FDE]; INC(_FDE);
       if a = 0 then exit;
       for i := 1 to a do
       begin
-        if (_FBC >= o_size) or (_FDE >= i_size) then exit;
+        if (_FBC >= o_size) then exit;
         o_buff[_FBC] := x; INC(_FBC);
       end;
     end
     else
     begin
-      if (_FBC >= o_size) or (_FDE >= i_size) then exit;
+      if (_FBC >= o_size) then exit;
       o_buff[_FBC] := a; INC(_FBC);
     end;
   until false; //can it hung? coz if it can it will
@@ -475,22 +495,25 @@ begin
   _FBC := 0;
   _FDE := skip;
   repeat
+    if (_FDE >= i_size) then exit;  
     a := i_buff[_FDE]; INC(_FDE);
     if a = esc then
     begin
+      if (_FDE >= i_size) then exit;
       a := i_buff[_FDE]; INC(_FDE);
       if a = 0 then exit;
       x := a;
+      if (_FDE >= i_size) then exit;
       a := i_buff[_FDE]; INC(_FDE);
       for i := 1 to x do
       begin
-        if (_FBC >= o_size) or (_FDE >= i_size) then exit;
+        if (_FBC >= o_size) then exit;
         o_buff[_FBC] := a; INC(_FBC);
       end;
     end
     else
     begin
-      if (_FBC >= o_size) or (_FDE >= i_size) then exit;
+      if (_FBC >= o_size) then exit;
       o_buff[_FBC] := a; INC(_FBC);
     end;
   until false; //can it hung? coz if it can it will
@@ -642,6 +665,7 @@ begin
   //Hires FLI (by Crest) (pc-ext: .hfc)
   if (e = '.HFC') then result := C64_HFC;
 
+  //Big FLI
   if (e = '.BFLI') then result := C64_BFLI;
 
   if (e = '.FFLI') then result := C64_FFLI;
@@ -657,8 +681,16 @@ begin
   //Drazlace (pc-ext: .drl) 
   if (e = '.DRL') then result := C64_DRL;
 
-(* lookup more-to-implement folder for:
+  //True Paint (by Fatum) (pc-ext: .mci)
+  if (e = '.MCI') then result := C64_MCI;
 
+  //
+//  if (e = '.HLF') then result := C64_HLF;
+
+  //
+//  if (e = '.HIM') then result := C64_HIM;
+
+(*
 Hires-Interlace v1.0 (Feniks) (pc-ext: .hlf) -- LOGOFENIKS.HLF
 load address: $4000 - $7f3f
 $2000 - $3f3f 	Bitmap 1
@@ -799,8 +831,19 @@ var i: integer;
 begin
   for i := 0 to 7999 do data.gfxmem1[i] := 0;
   for i := 0 to 7999 do data.gfxmem2[i] := 0;
-  for i := 0 to 999 do data.chrmem[i] := 0;
-  for i := 0 to 999 do data.colmem[i] := 0;
+  for i := 0 to 1023 do data.chrmem[i] := 0;
+  for i := 0 to 1023 do data.colmem[i] := 0;
+  data.bgcol := 0;
+end;
+
+procedure TC64.MCIFLIclear(var data: MCIFLIdata);
+var i: integer;
+begin
+  for i := 0 to 7999 do data.gfxmem1[i] := 0;
+  for i := 0 to 7999 do data.gfxmem2[i] := 0;
+  for i := 0 to 999 do data.chrmem1[i] := 0;
+  for i := 0 to 999 do data.chrmem2[i] := 0;
+  for i := 0 to 1023 do data.colmem[i] := 0;
   data.bgcol := 0;
 end;
 
@@ -1315,6 +1358,59 @@ begin
 	    buffer[6*x+6] := GetC64ColorR(c1);
 	    buffer[6*x+7] := GetC64ColorG(c1);
 	    buffer[6*x+8] := GetC64ColorB(c1);
+    end;
+    for x := 0 to 320-1 do
+      ca.Pixels[x, y] := RGB(buffer[x*3+0], buffer[x*3+1], buffer[x*3+2]);
+  end;
+end;
+
+procedure TC64.MCIshow(data: MCIFLIdata; ca: TCanvas);
+var x, y, ind, pos, bits, memind: integer;
+    a0, a1: byte;
+    c0, c1: byte;
+    buffer: array[0..3*321] of byte;
+begin
+  if not assigned(ca) then exit;
+
+  c0 := 0;
+  c1 := 0;
+  for y := 0 to 200-1 do
+  begin
+    buffer[0] := 0;
+    buffer[1] := 0;
+    buffer[2] := 0;
+    for x := 0 to 160-1 do
+    begin
+      ind := x div 4 + (y div 8)*40;  //color memory index
+      pos := (y mod 8) + (x div 4)*8 + (y div 8)*320;  //gfx memory byte
+      bits := (x mod 4);  //bit numbers
+      memind := ind;
+	    a0 := (data.gfxmem1[pos] and bitmask[bits]) div bitshift[bits];
+	    a1 := (data.gfxmem2[pos] and bitmask[bits]) div bitshift[bits];
+      case a0 of
+        0: c0 := data.bgcol;
+        1: c0 := data.chrmem1[memind] div 16;
+        2: c0 := data.chrmem1[memind] mod 16;
+        3: c0 := data.colmem[ind] and $0f;
+      end;
+      case a1 of
+        0: c1 := data.bgcol;
+        1: c1 := data.chrmem2[memind] div 16;
+        2: c1 := data.chrmem2[memind] mod 16;
+        3: c1 := data.colmem[ind] and $0f;
+      end;
+
+	    buffer[6*x+0] := (buffer[6*x+0] + GetC64ColorR(c0)) div 2;
+	    buffer[6*x+1] := (buffer[6*x+1] + GetC64ColorG(c0)) div 2;
+	    buffer[6*x+2] := (buffer[6*x+2] + GetC64ColorB(c0)) div 2;
+
+	    buffer[6*x+3] := (GetC64ColorR(c1) + GetC64ColorR(c0)) div 2;
+	    buffer[6*x+4] := (GetC64ColorG(c1) + GetC64ColorG(c0)) div 2;
+	    buffer[6*x+5] := (GetC64ColorB(c1) + GetC64ColorB(c0)) div 2;
+
+      buffer[6*x+6] := GetC64ColorR(c1);
+      buffer[6*x+7] := GetC64ColorG(c1);
+      buffer[6*x+8] := GetC64ColorB(c1);
     end;
     for x := 0 to 320-1 do
       ca.Pixels[x, y] := RGB(buffer[x*3+0], buffer[x*3+1], buffer[x*3+2]);
@@ -1930,6 +2026,40 @@ begin
   DRAZFLIshow(drazfli, ca); //C64_DRL
 end;
 
+(*
+True Paint (by Fatum) (pc-ext: .mci)
+load address: $9C00 - $E7E7
+$9C00 - $9FE7 	Screen RAM 1
+$9FE8 	Background
+$A000 - $BF3F 	Bitmap 1
+$C000 - $DF3F 	Bitmap 2
+$E000 - $E3E7 	Screen RAM 2
+$E400 - $E7E7 	Color RAM
+*)
+procedure TC64.MCIload(ca: TCanvas);
+var data: MCIFLIdata;
+    none: byte;
+    i: integer;
+begin
+  if not assigned(ca) then exit;
+
+  MCIFLIclear(data);
+  read(f, none, none);
+
+  for i := 0 to 1000-1 do read(f, data.chrmem1[i]);  //Screen RAMs
+  read(f, data.bgcol); //bg
+  for i := 1 to 8+16-1 do read(f, none);
+  for i := 0 to 8000-1 do read(f, data.gfxmem1[i]);  //Bitmap 1
+  for i := 1 to 8192-8000 do read(f, none);
+  for i := 0 to 8000-1 do read(f, data.gfxmem2[i]);  //Bitmap 2
+  for i := 1 to 8192-8000 do read(f, none);
+  for i := 0 to 1000-1 do read(f, data.chrmem2[i]);
+  for i := 1 to 1024-1000 do read(f, none);
+  for i := 0 to 1000-1 do read(f, data.colmem[i]);   //Color RAM
+
+  MCIshow(data, ca); //C64_MCI
+end;
+
 procedure TC64.FLIload(ca: TCanvas);
 var fli: FLIdata;
     ifli: IFLIdata;
@@ -2178,6 +2308,7 @@ begin
     C64_GUN_IFLI: result := GenericLoader(FileName, GUNFLIload, ca, C64_GUN_IFLI);
     C64_FUN:      result := GenericLoader(FileName, FUNFLIload, ca, C64_FUN);
     C64_DRL:      result := GenericLoader(FileName, DRLload, ca, C64_DRL);
+    C64_MCI:      result := GenericLoader(FileName, MCIload, ca, C64_MCI);
     else          result := GenericLoader(FileName, FLIload, ca, C64_FLI);
   end;
 end;
@@ -2218,7 +2349,8 @@ begin
     C64_HFC,
     C64_GUN_IFLI,
     C64_FUN,
-    C64_DRL:      result := LoadFliToBitmap(FileName, ca, mode);
+    C64_DRL,
+    C64_MCI:      result := LoadFliToBitmap(FileName, ca, mode);
     else
       result := -1;
   end;
