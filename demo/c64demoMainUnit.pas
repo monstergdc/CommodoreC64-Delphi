@@ -3,7 +3,7 @@ unit c64demoMainUnit;
 //TC64 Delphi/Lazarus class example / demo Delphi 7, v1.0
 //(c)2017 Noniewicz.com
 //created: 20171029
-//updated: 20171101, 05, 11, 12, 13, 15
+//updated: 20171101, 05, 11, 12, 13, 15, 18
 
 interface
 
@@ -248,6 +248,7 @@ end;
 procedure TForm1.BitBtnAboutClick(Sender: TObject);
 begin
   showmessage('Commodore C-64 images and GFX data viewer/converter Delphi/Lazarus class (TC64) DEMO.'#13#10+
+              'Component version: '+c64.Version+#13#10+
               '(c)1994-2017 Noniewicz.com, Jakub Noniewicz aka MoNsTeR/GDC'#13#10+
               '*FREEWARE*'#13#10#13#10+
               'Reads various C-64 graphics files.'#13#10+

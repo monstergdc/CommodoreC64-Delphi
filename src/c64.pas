@@ -78,7 +78,7 @@ unit c64;
 //updated: 20171118 1245-1315
 //updated: 20171118 1405-1415
 //updated: 20171118 1425-1540
-//updated: 20171118 1615-1750
+//updated: 20171118 1615-1800
 
 {todo:
 # MAIN:
@@ -288,6 +288,7 @@ private
   FAsHires: boolean;
 
   function GenericLoader(FileName: string; callback: TC64Loader; ca: TCanvas; mode: TC64FileType): integer;
+  function GetVersion: string;
 
   procedure MULTICOLORclear(var data: MULTIdata);
   procedure HIRESclear(var data: HIRESdata);
@@ -363,6 +364,7 @@ published
   property LastError: string read FLastError;
   property Palette: TC64Pallete read FPalette write FPalette;
   property AsHires: boolean read FAsHires write FAsHires;
+  property Version: string read GetVersion;
 end;
 
 
@@ -432,6 +434,9 @@ const
 
   TOP_BUFF = high(TAmicaBuff);
 
+  VER_MAJOR = 1;
+  VER_MINOR = 43;
+
 
 
 //RLE: Escape code / 1 byte value / 1 byte count
@@ -499,6 +504,11 @@ begin
   FPalette := CCS64_PAL;
   FAsHires := false;
   Set4Colors(0, 1, 15, 11);
+end;
+
+function TC64.GetVersion: string;
+begin
+  result := inttostr(VER_MAJOR)+'.'+inttostr(VER_MINOR);
 end;
 
 function TC64.GetC64Color(index: integer): TColor;

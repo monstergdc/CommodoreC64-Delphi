@@ -210,9 +210,9 @@ object Form1: TForm1
     end
   end
   object RadioGroup1: TRadioGroup
-    Left = 352
+    Left = 344
     Top = 256
-    Width = 97
+    Width = 105
     Height = 169
     Caption = 'Palette'
     ItemIndex = 0
