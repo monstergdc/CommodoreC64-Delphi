@@ -28,6 +28,7 @@ Supported formats include:
 - Advanced Art Studio 2.0 (by OCP) (pc-ext: .ocp;.art)  
 - CDU-Paint (pc-ext: .cdu)
 - Rainbow Painter (pc-ext: .rp)
+- Hires-Interlace v1.0 (Feniks) (pc-ext: .hlf)
 
 ![demo screenshot](/demo-d7_w32.png?raw=true "demo screenshot Delphi 7")
 ![demo screenshot](/demo-l_w32.png?raw=true "demo screenshot Lazarus/Win")
