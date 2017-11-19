@@ -84,12 +84,12 @@ unit c64;
 // = 2140 min = ~35.5h (not counting 1994-1995 and 2009-2011)
 //updated: 20171118 1820-1955
 //updated: 20171119 1145-1220
-//updated: 20171119 1235-1255
+//updated: 20171119 1235-1300
 
 {todo:
 # MAIN:
 - Hires Manager (.him)
-.- logo - hires v multi - LOGOshow(hires) / also .lp2
+.- logo - hires v multi - LOGOshow(hires) / also .lp2 .lp3
 # NEXT:
 - [!] more even more exotic formats
 == lookup again https://www.c64-wiki.com/wiki/Graphics_Modes
@@ -103,6 +103,7 @@ unit c64;
 - [!] pack back to C64 formats and write (colormap, dither?)
 - [!] recode one c64 fmt to another (m-m, h-h, h*m-*m*h, fli?)
 # LATER/MAYBE:
+- update demo screens
 - paint pallete to canvas fnc
 - cleanup: commonize FLI code
 - cleanup: wrap all FLI data records into one generic?
@@ -704,17 +705,10 @@ begin
   //Hires-Interlace v1.0 (Feniks) (pc-ext: .hlf)
   if (e = '.HLF') then result := C64_HLF;
 
-  //
+  //Hires Manager (by Cosmos) (pc-ext: .him)
 //  if (e = '.HIM') then result := C64_HIM;
 
 (*
-Hires-Interlace v1.0 (Feniks) (pc-ext: .hlf) -- LOGOFENIKS.HLF
-load address: $4000 - $7f3f
-$2000 - $3f3f 	Bitmap 1
-$4400 - $47e7 	Screen RAM 1
-$4800 - $4be7 	Screen RAM 2
-$6000 - $7f3f 	Bitmap 2
-
 Hires Manager (by Cosmos) (pc-ext: .him) -- logo.him / logo1.him
 Unpacked format:
 load address: $4000 - $7ffe

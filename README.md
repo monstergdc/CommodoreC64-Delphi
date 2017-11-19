@@ -2,7 +2,7 @@
 Delphi/Lazarus class to manipulate Commodore C-64 graphics data
 with demo application, crossplatform, tested under Windows and Linux (Debian).
 
-Supported formats include:
+Supported C-64 formats include:
 - Koala Painter 2 (by AUDIO LIGHT) (pc-ext: .koa;.kla;.gg)
 - Wigmore Artist64 (by wigmore) (pc-ext: .a64)
 - Art Studio 1.0-1.1 (by OCP) (pc-ext: .aas;.art;.hpi)
@@ -29,6 +29,8 @@ Supported formats include:
 - CDU-Paint (pc-ext: .cdu)
 - Rainbow Painter (pc-ext: .rp)
 - Hires-Interlace v1.0 (Feniks) (pc-ext: .hlf)
+
+Currently only saves JPG/BMP.
 
 ![demo screenshot](/demo-d7_w32.png?raw=true "demo screenshot Delphi 7")
 ![demo screenshot](/demo-l_w32.png?raw=true "demo screenshot Lazarus/Win")
