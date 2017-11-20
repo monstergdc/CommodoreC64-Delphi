@@ -5,7 +5,7 @@ unit c64demoMainUnit;
 //TC64 Delphi/Lazarus class example / demo Lazarus, v1.0
 //(c)2017 Noniewicz.com
 //created: 20171029
-//updated: 20171101, 05, 11, 13, 15, 18
+//updated: 20171101, 05, 11, 13, 15, 18, 20
 
 interface
 
@@ -23,7 +23,7 @@ type
     SaveDialog1: TSaveDialog;
     BitBtnLoad: TBitBtn;
     OpenDialog1: TOpenDialog;
-    GroupBox1: TGroupBox;
+    GBQuick: TGroupBox;
     BitBtnKOALA: TBitBtn;
     BitBtnHIRES: TBitBtn;
     BitBtnAMICA: TBitBtn;

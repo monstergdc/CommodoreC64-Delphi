@@ -23,12 +23,14 @@ Supported C-64 formats include:
 - some other *FLI formats -- IN PROGRESS 
 - 8x8 and 16x16 font (hires/multicolor) - YET UNFINISHED
 - sprites (hires/multicolor, also font sprited) - YET UNFINISHED
-- "logo" text format (using fonts in text mode to represent graphics)
+- Logo Painter v3 (pc-ext: .lp3;.gfx)
 - Paint Magic (pc-ext: .pmg)
 - Advanced Art Studio 2.0 (by OCP) (pc-ext: .ocp;.art)  
 - CDU-Paint (pc-ext: .cdu)
 - Rainbow Painter (pc-ext: .rp)
 - Hires-Interlace v1.0 (Feniks) (pc-ext: .hlf)
+- Hires Manager (by Cosmos) (pc-ext: .him) -- UNPACKED ONLY
+- raw single bitmap data (8000 bytes) hires/multi
 
 Currently only saves JPG/BMP.
 

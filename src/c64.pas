@@ -5,7 +5,7 @@ unit c64;
 {$ENDIF}
 
 //------------------------------------------------------------------------------
-//Commodore C-64 GFX files manipulation Delphi (7+) / Lazarus class, v1.45
+//Commodore C-64 GFX files manipulation Delphi (7+) / Lazarus class, v1.46
 //Crossplatform (Delphi 7+ / Lazarus on Win32, Lazarus on Linux)
 //(c)1994, 1995, 2009-2011, 2017 Noniewicz.com, Jakub Noniewicz aka MoNsTeR/GDC
 //E-mail: monster@Noniewicz.com
@@ -37,12 +37,14 @@ unit c64;
 //- some other *FLI formats -- IN PROGRESS 
 //- 8x8 and 16x16 font (hires/multicolor) - YET UNFINISHED
 //- sprites (hires/multicolor, also font sprited) - YET UNFINISHED
-//- "logo" text format (using fonts in text mode to represent graphics)
+//- Logo Painter v3 (pc-ext: .lp3;.gfx)
 //- Paint Magic (pc-ext: .pmg)
 //- Advanced Art Studio 2.0 (by OCP) (pc-ext: .ocp;.art)
 //- CDU-Paint (pc-ext: .cdu)
 //- Rainbow Painter (pc-ext: .rp)
 //- Hires-Interlace v1.0 (Feniks) (pc-ext: .hlf)
+//- Hires Manager (by Cosmos) (pc-ext: .him)
+//- raw single bitmap data (8000 bytes) hires/multi
 //------------------------------------------------------------------------------
 //History (==~cost):
 //created: somewhere in 1994-1995
@@ -85,17 +87,24 @@ unit c64;
 //updated: 20171118 1820-1955
 //updated: 20171119 1145-1220
 //updated: 20171119 1235-1300
+//updated: 20171120 2045-2115
+//updated: 20171120 2135-2305 ...
+
+//note "." == topic already somewhat in progress, [!] == important, [-] == ignore
 
 {todo:
 # MAIN:
-- Hires Manager (.him)
-.- logo - hires v multi - LOGOshow(hires) / also .lp2 .lp3
+.- Hires Manager (.him) packed [logo.him] [HIMload / HIMshow]
 # NEXT:
+.- logo - hires v multi - LOGOshow(hires)
+.- load 'raw' with start offset param ('search for pic' mode)
 - [!] more even more exotic formats
 == lookup again https://www.c64-wiki.com/wiki/Graphics_Modes
 == see http://archive.li/vVuuk
 == lookup view64 / congo / recoil for more formats
-== NUFLI - WTF is that? (there is more)
+== NUFLI - WTF is that?
+== there is more:
+   ECI / FLINT / UFLI / SHFLI-XL / EAFLI / SHFLI / SHIFLI / UIFLI
 == IFLI from $2000 ?
 == AFLI from $6c73 ?
 == mcp - Truepaint ?
@@ -104,6 +113,7 @@ unit c64;
 - [!] recode one c64 fmt to another (m-m, h-h, h*m-*m*h, fli?)
 # LATER/MAYBE:
 - update demo screens
+- name detected format (return back text) 
 - paint pallete to canvas fnc
 - cleanup: commonize FLI code
 - cleanup: wrap all FLI data records into one generic?
@@ -111,14 +121,16 @@ unit c64;
 - cleanup: "clearers" - one, fill by sizeof+memset-like ?
 - fnt/fntb/mob - get given one/range | also output really all
 - implement some SaveToStream / LoadFromStream ?
-- raw data output (24bit RGB .raw)?
+- raw data output (24bit RGB .raw)? also as dflt intermediate storage fmt?
 - commonize demo code d7/laz
 - godot.jj - see why differs from congo rendering?
 - fun/fp2 - see why differs (cherry, valsary)?
 - MCIshow - make sure that it really renders properly
+- issue with FLIbug (not really rendered sometimes)?
 - prep standarized test files (so all are the same)
 - mob - anim?
 - add misc limit checks?
+# FUTURE:
 - add deeper byte format detection
 - ZX analogue (6144/768/6912)?
 - even go xnView / recoil / congo / view64 ?
@@ -127,7 +139,7 @@ unit c64;
 
 {CHANGELOG:
 # v1.00
-- base stuff, ancient version in Turbo Pascal (koala, amica, hires, sprites, fonts, logos)
+- base stuff, ancient version in Turbo Pascal (koala, amica, hires, sprites, fonts, logo painter)
 # v1.10
 - slightly rewritten for Delphi (then named mob64.pas)
 # v1.20
@@ -196,6 +208,12 @@ unit c64;
 - misc
 # v1.45
 - added support for Hires-Interlace v1.0 (Feniks) (pc-ext: .hlf)
+# v1.46
+- .gfx format was actually already .lp3 Logo Painter format!
+- added support for Hires Manager (by Cosmos) (pc-ext: .him) unpacked
+- load 'raw' single 8000 bitmap only data - both hires/multi
+
+# EOFF 
 }
 
 interface
@@ -297,6 +315,7 @@ TC64Pallete = (C64S_PAL, CCS64_PAL, FRODO_PAL, GODOT_PAL, PC64_PAL, VICE_PAL,
                C64HQ_PAL, OLDVICE_PAL, VICEDFLT_PAL);
 
 TC64FileType = (C64_UNKNOWN,
+                C64_RAW,
                 C64_KOALA, C64_WIGMORE, C64_RUNPAINT, C64_ISM, C64_PAINTMAGIC,
                 C64_ADVARTST, C64_CDU, C64_RAINBOW,
                 C64_KOALA_RLE, 
@@ -306,7 +325,7 @@ TC64FileType = (C64_UNKNOWN,
                 C64_LOGO, C64_FNT, C64_FNTB, C64_MOB, C64_MBF,
                 C64_FLI, C64_AFLI, C64_BFLI, C64_IFLI, C64_FFLI,
                 C64_HFC, C64_GUN_IFLI, C64_FUN, C64_DRL, C64_MCI,
-                C64_HLF
+                C64_HLF, C64_HIM
                 );
 
 TC64 = class(TObject)
@@ -341,6 +360,7 @@ private
   procedure FNTBshow(x0, y0: integer; fntb: FNTBdata; ca: TCanvas; cnt: byte);
   procedure hMOBshow(x0, y0: integer; mob: MOBdata; ca: TCanvas; cnt: byte);
   procedure mMOBshow(x0, y0: integer; mob: MOBdata; ca: TCanvas; cnt: byte);
+  procedure HIMshow(fli: FLIdata; ca: TCanvas);
   procedure FLIshow(fli: FLIdata; ca: TCanvas; mode: TC64FileType);
   procedure IFLIshow(ifli: IFLIdata; ca: TCanvas);
   procedure FFLIshow(ffli: FFLIdata; ca: TCanvas);
@@ -349,6 +369,8 @@ private
   procedure MCIshow(data: MCIFLIdata; ca: TCanvas);
   procedure HIIshow(data: HIIdata; ca: TCanvas);
 
+  procedure RAWHIRESload(ca: TCanvas);
+  procedure RAWMULTIoad(ca: TCanvas);
   procedure KOALAload(ca: TCanvas);
   procedure KOALAload_RLE(ca: TCanvas);
   procedure WIGMOREload(ca: TCanvas);
@@ -375,6 +397,7 @@ private
   procedure DRLload(ca: TCanvas);
   procedure MCIload(ca: TCanvas);
   procedure HIIload(ca: TCanvas);
+  procedure HIMload(ca: TCanvas);
   procedure FLIload(ca: TCanvas);
 public
   constructor Create;
@@ -386,6 +409,7 @@ public
   procedure Set4Colors(color0, color1, color2, color3: byte);
   function ExtMapper(ext: string): TC64FileType;
 
+  function LoadRawToBitmap(FileName: string; ca: TCanvas; mode: TC64FileType): integer;
   function LoadMulticolorToBitmap(FileName: string; ca: TCanvas; mode: TC64FileType): integer;
   function LoadHiresToBitmap(FileName: string; ca: TCanvas; mode: TC64FileType): integer;
   function LoadAmicaToBitmap(FileName: string; ca: TCanvas): integer;
@@ -408,7 +432,7 @@ implementation
 
 const
   VER_MAJOR = 1;
-  VER_MINOR = 45;
+  VER_MINOR = 46;
 
 
 //0..15 = black,white,red,cyan,magenta(purple),green,blue,yellow
@@ -619,6 +643,9 @@ begin
   e := uppercase(ext);
   result := C64_UNKNOWN;
 
+  //raw
+  if (e = '.RAW') then result := C64_RAW;
+
   //Koala Painter 2 (by AUDIO LIGHT) (pc-ext: .koa;.kla;.gg)
   if (e = '.KOA') or (e = '.KLA') then result := C64_KOALA;
   if (e = '.GG') then result := C64_KOALA_RLE;
@@ -661,8 +688,8 @@ begin
   //Amica Paint
   if (e = '.[B]') or (e = '.AMI') then result := C64_AMICA; //note: '[B]' invented here
 
-  //?
-  if e = '.GFX' then result := C64_LOGO;  //note: ext invented here
+  //Logo Painter v3
+  if (e = '.LP3') or (e = '.GFX') then result := C64_LOGO;  //note: gfx ext invented here
 
   //8x8 font (multi or hires)
   if e = '.FNT' then result := C64_FNT;
@@ -706,20 +733,7 @@ begin
   if (e = '.HLF') then result := C64_HLF;
 
   //Hires Manager (by Cosmos) (pc-ext: .him)
-//  if (e = '.HIM') then result := C64_HIM;
-
-(*
-Hires Manager (by Cosmos) (pc-ext: .him) -- logo.him / logo1.him
-Unpacked format:
-load address: $4000 - $7ffe
-$4000 - $5f3f 	Bitmap
-$4001 	format marker, $ff = unpacked
-$6000 - $7fe7 	Screen RAMs
-Packed format:
-load address: $4000
-$4000 - $4001 	Pointer to end of packed data
-$4002 - $4003 	Pointer to end of unpacked data + 1 ($7ff2)
-*)
+  if (e = '.HIM') then result := C64_HIM;
 end;
 
 function TC64.GenericLoader(FileName: string; callback: TC64Loader; ca: TCanvas; mode: TC64FileType): integer;
@@ -1112,18 +1126,47 @@ begin
     end;
 end;
 
-//FLI - based on C code from C64Gfx by Pasi 'Albert' Ojala
+//FLI - based (somewhat) on C code from C64Gfx by Pasi 'Albert' Ojala
 
 const bitmask: array[0..3] of byte = ($c0, $30, $0c, $03);
       bitshift: array[0..3] of byte = ($40, $10, $04, $01);
 
-      
+procedure TC64.HIMshow(fli: FLIdata; ca: TCanvas);
+var x, y, ind, pos, bits: integer;
+    a, b: byte;
+begin
+  if not assigned(ca) then exit;
+
+  for y := 0 to 200-1 do
+  begin
+    begin
+      for x := 0 to 320-1 do
+      begin
+        ind := x div 8 + (y div 8)*40;  //color memory index
+        pos := (y mod 8) + (x div 8)*8 + (y div 8)*320;  //gfx memory byte
+        bits := 7 - (x mod 8);  //bit numbers
+        a := (fli.gfxmem[pos] shr bits) and 1;
+        if (x < 24) then
+          b := $f
+        else
+        begin
+          if (a <> 0) then
+            b := fli.chrmem[y mod 8][ind] div 16
+          else
+            b := fli.chrmem[y mod 8][ind] mod 16;
+        end;
+        ca.Pixels[x, y] := GetC64Color(b);
+      end;
+    end;
+  end;
+end;
+
 procedure TC64.FLIshow(fli: FLIdata; ca: TCanvas; mode: TC64FileType);
 var x, y, ind, pos, bits, ysize(*, xsize*): integer;
     a, b: byte;
 begin
   if not assigned(ca) then exit;
-  
+
   ysize := 200;
 //  xsize := 160;
   b := 0;
@@ -1473,6 +1516,36 @@ begin
 end;
 
 //---
+
+procedure TC64.RAWHIRESload(ca: TCanvas);
+var data: HIRESdata;
+    g: word;
+    none: byte;
+begin
+  if not assigned(ca) then exit;
+  HIRESclear(data);
+  {9009 bytes - what's that!?}
+  read(f, none, none);
+  for g := 0 to $3f40-$2000-1 do read(f, data.bitmap[g]);
+  for g := 0 to $4328-$3f40-1 do data.ink[g] := (FColors4[0] and $0f) + ((FColors4[1] and $0f) shl 4);
+  HIRESshow(data, ca);
+end;
+
+procedure TC64.RAWMULTIoad(ca: TCanvas);
+var data: MULTIdata;
+    g: word;
+    none: byte;
+begin
+  if not assigned(ca) then exit;
+  MULTICOLORclear(data);
+  read(f, none, none);
+  for g := 0 to $7f40-$6000-1 do read(f, data.bitmap[g]);
+  //note: not yet sure if ink1/ink2 not reversed
+  for g := 0 to $8328-$7f40-1 do data.ink1[g] := (FColors4[1] and $0f) + ((FColors4[2] and $0f) shl 4);
+  for g := 0 to $8710-$8328-1 do data.ink2[g] := FColors4[3] and $0f;
+  data.backGr := FColors4[0];
+  MULTICOLORshow(data, ca);
+end;
 
 procedure TC64.KOALAload(ca: TCanvas);
 var data: MULTIdata;
@@ -2144,6 +2217,53 @@ begin
   HIIshow(data, ca); //C64_HLF
 end;
 
+(*
+Hires Manager (by Cosmos) (pc-ext: .him)
+Unpacked format:
+load address: $4000 - $7ffe
+$4000 - $5f3f 	Bitmap
+$4001 	format marker, $ff = unpacked
+$6000 - $7fe7 	Screen RAMs
+Packed format:
+load address: $4000
+$4000 - $4001 	Pointer to end of packed data
+$4002 - $4003 	Pointer to end of unpacked data + 1 ($7ff2)
+---
+Data packed backwards 
+$00 = escape byte, RLE sequences: $00,COUNT,BYTE, 
+and literal sequences are COUNT+1,DATA,DATA… 
+Literal sequences are buggy and overlap with the next sequence
+---
+Hires Manager images are only 192 lines tall, 
+and the packed format only saves $4140 - $5f3f of the bitmap
+*)
+procedure TC64.HIMload(ca: TCanvas);
+var data: FLIdata;
+    none, fmt: byte;
+    i, j, m: integer;
+begin
+  if not assigned(ca) then exit;
+
+  FLIclear(data);
+  read(f, none, none);
+
+  read(f, none, fmt);
+  seek(f, 0);
+  if fmt <> $ff then raise(Exception.Create('Packed Hires Manager not supported yet!'));
+  read(f, none, none);
+
+  for i := 0 to 8192-1 do read(f, data.gfxmem[i]);
+  for j := 0 to 7 do  //8168 = screen RAMs total
+  begin
+    m := 1024;
+    if j = 7 then m := 1000; //what a mess! 
+    for i := 0 to m-1 do
+      read(f, data.chrmem[j][i]);
+  end;
+
+  HIMshow(data, ca);
+end;
+
 procedure TC64.FLIload(ca: TCanvas);
 var fli: FLIdata;
     ifli: IFLIdata;
@@ -2332,6 +2452,14 @@ end;
 
 //---
 
+function TC64.LoadRawToBitmap(FileName: string; ca: TCanvas; mode: TC64FileType): integer;
+begin
+  if AsHires then
+    result := GenericLoader(FileName, RAWHIRESload, ca, mode)
+  else
+    result := GenericLoader(FileName, RAWMULTIoad, ca, mode);
+end;
+
 function TC64.LoadMulticolorToBitmap(FileName: string; ca: TCanvas; mode: TC64FileType): integer;
 begin
   case mode of
@@ -2394,6 +2522,7 @@ begin
     C64_DRL:      result := GenericLoader(FileName, DRLload, ca, C64_DRL);
     C64_MCI:      result := GenericLoader(FileName, MCIload, ca, C64_MCI);
     C64_HLF:      result := GenericLoader(FileName, HIIload, ca, C64_HLF);
+    C64_HIM:      result := GenericLoader(FileName, HIMload, ca, C64_HIM);
     else          result := GenericLoader(FileName, FLIload, ca, C64_FLI);
   end;
 end;
@@ -2436,7 +2565,9 @@ begin
     C64_FUN,
     C64_DRL,
     C64_MCI,
-    C64_HLF:      result := LoadFliToBitmap(FileName, ca, mode);
+    C64_HLF,    
+    C64_HIM:      result := LoadFliToBitmap(FileName, ca, mode);
+    C64_RAW:      result := LoadRawToBitmap(FileName, ca, mode);
     else
       result := -1;
   end;

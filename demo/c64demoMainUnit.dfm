@@ -35,7 +35,7 @@ object Form1: TForm1
     Width = 75
     Height = 25
     Caption = 'Save img...'
-    TabOrder = 0
+    TabOrder = 1
     OnClick = BitBtnSaveClick
   end
   object BitBtnAbout: TBitBtn
@@ -44,7 +44,7 @@ object Form1: TForm1
     Width = 75
     Height = 25
     Caption = 'About'
-    TabOrder = 1
+    TabOrder = 2
     OnClick = BitBtnAboutClick
   end
   object BitBtnLoad: TBitBtn
@@ -53,10 +53,10 @@ object Form1: TForm1
     Width = 75
     Height = 25
     Caption = 'Load...'
-    TabOrder = 2
+    TabOrder = 0
     OnClick = BitBtnLoadClick
   end
-  object GroupBox1: TGroupBox
+  object GBQuick: TGroupBox
     Left = 344
     Top = 8
     Width = 257
