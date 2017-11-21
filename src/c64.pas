@@ -12,7 +12,7 @@ unit c64;
 //WWW: http://www.Noniewicz.com
 //Licence: BSD 2-Clause License
 //------------------------------------------------------------------------------
-//based on my own earlier work (Koala/ArtStudio/Amica/Fonts/Sprites)
+//based on my own earlier work (Koala/ArtStudio/Amica/Fonts/Sprites/Logo Painter)
 //and this:
 //http://codebase64.org/doku.php?id=base:c64_grafix_files_specs_list_v0.03
 //(some) FLI code - loosely based on C code from C64Gfx by Pasi 'Albert' Ojala
@@ -88,36 +88,35 @@ unit c64;
 //updated: 20171119 1145-1220
 //updated: 20171119 1235-1300
 //updated: 20171120 2045-2115
-//updated: 20171120 2135-2305 ...
+//updated: 20171120 2135-2305
+//updated: 20171121 2025-2035
 
 //note "." == topic already somewhat in progress, [!] == important, [-] == ignore
 
 {todo:
 # MAIN:
-.- Hires Manager (.him) packed [logo.him] [HIMload / HIMshow]
-# NEXT:
+.- Hires Manager (.him) packed [logo.him] [HIMload]
 .- logo - hires v multi - LOGOshow(hires)
+# NEXT:
 .- load 'raw' with start offset param ('search for pic' mode)
 - [!] more even more exotic formats
 == lookup again https://www.c64-wiki.com/wiki/Graphics_Modes
 == see http://archive.li/vVuuk
 == lookup view64 / congo / recoil for more formats
 == NUFLI - WTF is that?
-== there is more:
-   ECI / FLINT / UFLI / SHFLI-XL / EAFLI / SHFLI / SHIFLI / UIFLI
+== there is more: ECI / FLINT / UFLI / SHFLI-XL / EAFLI / SHFLI / SHIFLI / UIFLI
 == IFLI from $2000 ?
 == AFLI from $6c73 ?
 == mcp - Truepaint ?
 - separate load and canvas pack (rerender w/o load)
 - [!] pack back to C64 formats and write (colormap, dither?)
 - [!] recode one c64 fmt to another (m-m, h-h, h*m-*m*h, fli?)
+- [!] tabelarize format structures + one call to load them all / LoadFromStream 1st then seek?
 # LATER/MAYBE:
 - update demo screens
-- name detected format (return back text) 
 - paint pallete to canvas fnc
 - cleanup: commonize FLI code
 - cleanup: wrap all FLI data records into one generic?
-- cleanup: tabeliarize format structures + one call to load them all
 - cleanup: "clearers" - one, fill by sizeof+memset-like ?
 - fnt/fntb/mob - get given one/range | also output really all
 - implement some SaveToStream / LoadFromStream ?
@@ -130,9 +129,9 @@ unit c64;
 - prep standarized test files (so all are the same)
 - mob - anim?
 - add misc limit checks?
+- name detected format (return back text) ?
 # FUTURE:
 - add deeper byte format detection
-- ZX analogue (6144/768/6912)?
 - even go xnView / recoil / congo / view64 ?
 - C / C++ / C# / JS / Java versions (so more portable) ?
 }
