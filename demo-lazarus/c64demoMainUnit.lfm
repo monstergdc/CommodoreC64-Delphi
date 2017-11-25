@@ -1,11 +1,11 @@
 object Form1: TForm1
   Left = 188
-  Height = 429
+  Height = 457
   Top = 107
   Width = 610
   BorderStyle = bsDialog
   Caption = 'TC64 Delphi class demo'
-  ClientHeight = 429
+  ClientHeight = 457
   ClientWidth = 610
   Color = clBtnFace
   Font.Color = clWindowText
@@ -98,7 +98,7 @@ object Form1: TForm1
       Width = 75
       Caption = 'LOGO'
       OnClick = BitBtnLOGOClick
-      TabOrder = 5
+      TabOrder = 6
     end
     object BitBtnFONT: TBitBtn
       Left = 86
@@ -107,7 +107,7 @@ object Form1: TForm1
       Width = 75
       Caption = 'FONT 1x1'
       OnClick = BitBtnFONTClick
-      TabOrder = 6
+      TabOrder = 7
     end
     object BitBtnFNTB: TBitBtn
       Left = 86
@@ -116,7 +116,7 @@ object Form1: TForm1
       Width = 75
       Caption = 'FONT 2x2'
       OnClick = BitBtnFNTBClick
-      TabOrder = 7
+      TabOrder = 8
     end
     object BitBtnMOBM: TBitBtn
       Left = 86
@@ -125,7 +125,7 @@ object Form1: TForm1
       Width = 75
       Caption = 'MOB M'
       OnClick = BitBtnMOBMClick
-      TabOrder = 8
+      TabOrder = 9
     end
     object BitBtn8: TBitBtn
       Left = 86
@@ -134,7 +134,7 @@ object Form1: TForm1
       Width = 75
       Caption = 'MFB'
       OnClick = BitBtn8Click
-      TabOrder = 10
+      TabOrder = 11
     end
     object BitBtn9: TBitBtn
       Left = 166
@@ -144,7 +144,7 @@ object Form1: TForm1
       Caption = 'IFLI?'
       Enabled = False
       OnClick = BitBtn9Click
-      TabOrder = 11
+      TabOrder = 12
     end
     object BitBtnBFLI: TBitBtn
       Left = 166
@@ -153,7 +153,7 @@ object Form1: TForm1
       Width = 75
       Caption = 'BFLI'
       OnClick = BitBtnBFLIClick
-      TabOrder = 12
+      TabOrder = 13
     end
     object BitBtn11: TBitBtn
       Left = 166
@@ -162,7 +162,7 @@ object Form1: TForm1
       Width = 75
       Caption = 'FFLI'
       OnClick = BitBtn11Click
-      TabOrder = 13
+      TabOrder = 14
     end
     object BitBtnFLI: TBitBtn
       Left = 166
@@ -171,7 +171,7 @@ object Form1: TForm1
       Width = 75
       Caption = 'FLI'
       OnClick = BitBtnFLIClick
-      TabOrder = 14
+      TabOrder = 15
     end
     object BitBtnAFLI: TBitBtn
       Left = 166
@@ -180,7 +180,7 @@ object Form1: TForm1
       Width = 75
       Caption = 'AFLI'
       OnClick = BitBtnAFLIClick
-      TabOrder = 15
+      TabOrder = 16
     end
     object BitBtnHIEDDI: TBitBtn
       Left = 6
@@ -207,10 +207,19 @@ object Form1: TForm1
       Width = 75
       Caption = 'MOB H'
       OnClick = BitBtnMOBHClick
-      TabOrder = 9
+      TabOrder = 10
+    end
+    object BitBtnADVART: TBitBtn
+      Left = 6
+      Height = 25
+      Top = 160
+      Width = 75
+      Caption = 'ADVART'
+      OnClick = BitBtnADVARTClick
+      TabOrder = 5
     end
   end
-  object RadioGroup1: TRadioGroup
+  object RGPal: TRadioGroup
     Left = 344
     Height = 169
     Top = 256
@@ -226,7 +235,6 @@ object Form1: TForm1
     ChildSizing.ControlsPerLine = 1
     ClientHeight = 151
     ClientWidth = 101
-    ItemIndex = 0
     Items.Strings = (
       'C64S'
       'CCS64S'
@@ -238,7 +246,7 @@ object Form1: TForm1
       'OLDVICE'
       'VICEDFLT'
     )
-    OnClick = RadioGroup1Click
+    OnClick = RGPalClick
     TabOrder = 4
   end
   object GroupBox2: TGroupBox
@@ -326,6 +334,15 @@ object Form1: TForm1
       Caption = 'As Hires?'
       TabOrder = 4
     end
+  end
+  object ImagePal: TImage
+    Left = 344
+    Height = 17
+    Hint = 'Pallette preview'
+    Top = 432
+    Width = 256
+    ParentShowHint = False
+    ShowHint = True
   end
   object SaveDialog1: TSaveDialog
     Options = [ofOverwritePrompt, ofHideReadOnly, ofPathMustExist, ofEnableSizing]

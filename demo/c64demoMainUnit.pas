@@ -3,7 +3,7 @@ unit c64demoMainUnit;
 //TC64 Delphi/Lazarus class example / demo Delphi 7, v1.0
 //(c)2017 Noniewicz.com
 //created: 20171029
-//updated: 20171101, 05, 11, 12, 13, 15, 18, 20
+//updated: 20171101, 05, 11, 12, 13, 15, 18, 20, 25
 
 interface
 
@@ -37,7 +37,7 @@ type
     BitBtnAFLI: TBitBtn;
     BitBtnHIEDDI: TBitBtn;
     BitBtnDDL: TBitBtn;
-    RadioGroup1: TRadioGroup;
+    RGPal: TRadioGroup;
     GroupBox2: TGroupBox;
     ComboBoxC0: TComboBox;
     Label2: TLabel;
@@ -49,6 +49,8 @@ type
     Label5: TLabel;
     BitBtnMOBH: TBitBtn;
     cbHires: TCheckBox;
+    ImagePal: TImage;
+    BitBtnADVART: TBitBtn;
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
     procedure BitBtnKOALAClick(Sender: TObject);
@@ -69,8 +71,9 @@ type
     procedure BitBtnAFLIClick(Sender: TObject);
     procedure BitBtnHIEDDIClick(Sender: TObject);
     procedure BitBtnDDLClick(Sender: TObject);
-    procedure RadioGroup1Click(Sender: TObject);
+    procedure RGPalClick(Sender: TObject);
     procedure BitBtnMOBHClick(Sender: TObject);
+    procedure BitBtnADVARTClick(Sender: TObject);
   private
     c64: TC64;
     procedure ClearImage(bfli: boolean = false);
@@ -95,6 +98,10 @@ begin
   folder := ExtractFilePath(Application.ExeName)+'..\c64-sampledata\';
   SaveDialog1.InitialDir := ExtractFilePath(Application.ExeName);
   OpenDialog1.InitialDir := ExtractFilePath(folder);
+
+  ImagePal.Picture.Bitmap.Width := ImagePal.Width;
+  ImagePal.Picture.Bitmap.Height := ImagePal.Height;
+  RGPal.ItemIndex := 0;
 
   ComboBoxC0.Items.Clear;
   for i := 0 to 15 do
@@ -316,9 +323,15 @@ begin
   c64.LoadHiresToBitmap(folder+'midear.dd', Image1.Picture.Bitmap.Canvas, C64_DDL);
 end;
 
-procedure TForm1.RadioGroup1Click(Sender: TObject);
+procedure TForm1.BitBtnADVARTClick(Sender: TObject);
 begin
-  case RadioGroup1.ItemIndex of
+  ClearImage;
+  c64.LoadMulticolorToBitmap(folder+'demo-meyes.mpic', Image1.Picture.Bitmap.Canvas, C64_ADVARTST);
+end;
+
+procedure TForm1.RGPalClick(Sender: TObject);
+begin
+  case RGPal.ItemIndex of
     0: c64.Palette := C64S_PAL;
     1: c64.Palette := CCS64_PAL;
     2: c64.Palette := FRODO_PAL;
@@ -329,6 +342,8 @@ begin
     7: c64.Palette := OLDVICE_PAL;
     8: c64.Palette := VICEDFLT_PAL;
   end;
+
+  c64.PaintPallete(ImagePal.Picture.Bitmap.Canvas, 0, 0, 16, ImagePal.Picture.Bitmap.Height);
 end;
 
 procedure TForm1.BitBtnMOBHClick(Sender: TObject);
@@ -342,6 +357,7 @@ begin
   c64.AsHires := true;
   c64.LoadMobToBitmap(folder+'TFIGHT.MOB', Image1.Picture.Bitmap.Canvas);
 end;
+
 
 end.
 

@@ -90,14 +90,16 @@ unit c64;
 //updated: 20171120 2045-2115
 //updated: 20171120 2135-2305
 //updated: 20171121 2025-2035
+//updated: 20171125 1335-1450
 
 //note "." == topic already somewhat in progress, [!] == important, [-] == ignore
 
 {todo:
 # MAIN:
+- ?
+# NEXT:
 .- Hires Manager (.him) packed [logo.him] [HIMload]
 .- logo - hires v multi - LOGOshow(hires)
-# NEXT:
 .- load 'raw' with start offset param ('search for pic' mode)
 - [!] more even more exotic formats
 == lookup again https://www.c64-wiki.com/wiki/Graphics_Modes
@@ -108,28 +110,26 @@ unit c64;
 == IFLI from $2000 ?
 == AFLI from $6c73 ?
 == mcp - Truepaint ?
-- separate load and canvas pack (rerender w/o load)
+- [!] separate load and canvas pack (rerender w/o load)
 - [!] pack back to C64 formats and write (colormap, dither?)
 - [!] recode one c64 fmt to another (m-m, h-h, h*m-*m*h, fli?)
 - [!] tabelarize format structures + one call to load them all / LoadFromStream 1st then seek?
 # LATER/MAYBE:
-- update demo screens
-- paint pallete to canvas fnc
+- raw data output (24bit RGB .raw)? also as dflt intermediate storage fmt?
 - cleanup: commonize FLI code
 - cleanup: wrap all FLI data records into one generic?
-- cleanup: "clearers" - one, fill by sizeof+memset-like ?
 - fnt/fntb/mob - get given one/range | also output really all
-- implement some SaveToStream / LoadFromStream ?
-- raw data output (24bit RGB .raw)? also as dflt intermediate storage fmt?
+- common file load via LoadFromStream / process later?
 - commonize demo code d7/laz
+- prep standarized test files (so all have the same pixel base)
+- mob - anim?
+- add misc limit checks?
+- name detected format (return back text) ?
+# ISSUES:
 - godot.jj - see why differs from congo rendering?
 - fun/fp2 - see why differs (cherry, valsary)?
 - MCIshow - make sure that it really renders properly
 - issue with FLIbug (not really rendered sometimes)?
-- prep standarized test files (so all are the same)
-- mob - anim?
-- add misc limit checks?
-- name detected format (return back text) ?
 # FUTURE:
 - add deeper byte format detection
 - even go xnView / recoil / congo / view64 ?
@@ -211,6 +211,8 @@ unit c64;
 - .gfx format was actually already .lp3 Logo Painter format!
 - added support for Hires Manager (by Cosmos) (pc-ext: .him) unpacked
 - load 'raw' single 8000 bitmap only data - both hires/multi
+- code cleanup
+- paint pallete to canvas 
 
 # EOFF 
 }
@@ -406,6 +408,7 @@ public
   function GetC64ColorG(index: integer): byte;
   function GetC64ColorB(index: integer): byte;
   procedure Set4Colors(color0, color1, color2, color3: byte);
+  procedure PaintPallete(ca: TCanvas; x0, y0, w, h: integer);
   function ExtMapper(ext: string): TC64FileType;
 
   function LoadRawToBitmap(FileName: string; ca: TCanvas; mode: TC64FileType): integer;
@@ -636,6 +639,27 @@ begin
   FColors4[3] := color3;
 end;
 
+procedure TC64.PaintPallete(ca: TCanvas; x0, y0, w, h: integer);
+var i: integer;
+    r: TRect;
+begin
+  if not assigned(ca) then exit;
+
+  r.Top := y0;
+  r.Bottom := h;
+  ca.Brush.Style := bsSolid;
+
+  for i := 0 to 15 do
+  begin
+    r.Left := x0 + i * w;
+    r.Right := r.Left + w;
+    ca.Brush.Color := GetC64Color(i);
+    ca.FillRect(r);
+  end;
+end;
+
+//---
+
 function TC64.ExtMapper(ext: string): TC64FileType;
 var e: string;
 begin
@@ -765,119 +789,71 @@ begin
   end;
 end;
 
+//---
+
 procedure TC64.MULTICOLORclear(var data: MULTIdata);
-var i: integer;
 begin
-  for i := 0 to 7999 do data.bitmap[i] := 0;
-  for i := 0 to 999 do data.ink1[i] := 0;
-  for i := 0 to 999 do data.ink2[i] := 0;
-  data.backGr := 0;
+  FillChar(data, sizeof(data), #0);
 end;
 
 procedure TC64.HIRESclear(var data: HIRESdata);
-var i: integer;
 begin
-  for i := 0 to 7999 do data.bitmap[i] := 0;
-  for i := 0 to 999 do data.ink[i] := 0;
+  FillChar(data, sizeof(data), #0);
 end;
 
 procedure TC64.LOGOclear(var data: LOGOdata);
-var i: integer;
 begin
-  for i := 0 to 2047 do data.logo[i] := 0;
-  for i := 0 to 2047 do data.bitmap[i] := 0;
+  FillChar(data, sizeof(data), #0);
 end;
 
 procedure TC64.FNTclear(var data: FNTdata);
-var g, h: integer;
 begin
-  for g := 1 to 255 do for h := 0 to 7 do data.fnt[g, h] := 0;
+  FillChar(data, sizeof(data), #0);
 end;
 
 procedure TC64.FNTBclear(var data: FNTBdata);
-var g, h: integer;
 begin
-  data.cnt := 0;
-  for g := 1 to 255 do for h := 0 to 31 do data.fntb[g, h] := 0;
+  FillChar(data, sizeof(data), #0);
 end;
 
 procedure TC64.MOBclear(var data: MOBdata);
-var g, h: integer;
 begin
-  data.cnt := 0;
-  for g := 1 to 100 do for h := 0 to 63 do data.mob[g, h] := 0;
+  FillChar(data, sizeof(data), #0);
 end;
 
 procedure TC64.FLIclear(var data: FLIdata);
-var i, j: integer;
 begin
-  for i := 0 to 16383 do data.gfxmem[i] := 0;
-  for j := 0 to 7 do for i := 0 to 2047 do data.chrmem[j][i] := 0;
-  for i := 0 to 1023 do data.colmem[i] := 0;
-  for i := 0 to 255 do data.bgcol[i] := 0;
+  FillChar(data, sizeof(data), #0);
 end;
 
 procedure TC64.IFLIclear(var data: IFLIdata);
-var i: integer;
 begin
-  for i := 0 to 8191 do data.gfxmem1[i] := 0;
-  for i := 0 to 8191 do data.gfxmem2[i] := 0;
-  for i := 0 to 8191 do data.chrmem1[i] := 0;
-  for i := 0 to 8191 do data.chrmem2[i] := 0;
-  for i := 0 to 1023 do data.colmem[i] := 0;
-  data.bg := 0;
+  FillChar(data, sizeof(data), #0);
 end;
 
 procedure TC64.FFLIclear(var data: FFLIdata);
-var i: integer;
 begin
-  for i := 0 to 8191 do data.gfxmem1[i] := 0;
-  for i := 0 to 8191 do data.chrmem1[i] := 0;
-  for i := 0 to 8191 do data.chrmem2[i] := 0;
-  for i := 0 to 1023 do data.colmem[i] := 0;
-  for i := 0 to 255 do data.bgmem1[i] := 0;
-  for i := 0 to 255 do data.bgmem2[i] := 0;
+  FillChar(data, sizeof(data), #0);
 end;
 
 procedure TC64.FFLI2clear(var data: FFLI2data);
-var i: integer;
 begin
-  for i := 0 to 8191 do data.gfxmem1[i] := 0;
-  for i := 0 to 8191 do data.gfxmem2[i] := 0;
-  for i := 0 to 8191 do data.chrmem1[i] := 0;
-  for i := 0 to 8191 do data.chrmem2[i] := 0;
-  for i := 0 to 1023 do data.colmem[i] := 0;
-  for i := 0 to 255 do data.bgmem[i] := 0;
+  FillChar(data, sizeof(data), #0);
 end;
 
 procedure TC64.DRAZFLIclear(var data: DRAZFLIdata);
-var i: integer;
 begin
-  for i := 0 to 7999 do data.gfxmem1[i] := 0;
-  for i := 0 to 7999 do data.gfxmem2[i] := 0;
-  for i := 0 to 1023 do data.chrmem[i] := 0;
-  for i := 0 to 1023 do data.colmem[i] := 0;
-  data.bgcol := 0;
+  FillChar(data, sizeof(data), #0);
 end;
 
 procedure TC64.MCIFLIclear(var data: MCIFLIdata);
-var i: integer;
 begin
-  for i := 0 to 7999 do data.gfxmem1[i] := 0;
-  for i := 0 to 7999 do data.gfxmem2[i] := 0;
-  for i := 0 to 999 do data.chrmem1[i] := 0;
-  for i := 0 to 999 do data.chrmem2[i] := 0;
-  for i := 0 to 1023 do data.colmem[i] := 0;
-  data.bgcol := 0;
+  FillChar(data, sizeof(data), #0);
 end;
 
 procedure TC64.HIIclear(var data: HIIdata);
-var i: integer;
 begin
-  for i := 0 to 7999 do data.gfxmem1[i] := 0;
-  for i := 0 to 7999 do data.gfxmem2[i] := 0;
-  for i := 0 to 999 do data.chrmem1[i] := 0;
-  for i := 0 to 999 do data.chrmem2[i] := 0;
+  FillChar(data, sizeof(data), #0);
 end;
 
 //---
@@ -1519,28 +1495,29 @@ end;
 procedure TC64.RAWHIRESload(ca: TCanvas);
 var data: HIRESdata;
     g: word;
-    none: byte;
+    c, none: byte;
 begin
   if not assigned(ca) then exit;
   HIRESclear(data);
-  {9009 bytes - what's that!?}
+  c := (FColors4[0] and $0f) + ((FColors4[1] and $0f) shl 4);
   read(f, none, none);
-  for g := 0 to $3f40-$2000-1 do read(f, data.bitmap[g]);
-  for g := 0 to $4328-$3f40-1 do data.ink[g] := (FColors4[0] and $0f) + ((FColors4[1] and $0f) shl 4);
+  for g := 0 to 8000-1 do read(f, data.bitmap[g]);
+  for g := 0 to 1000-1 do data.ink[g] := c;
   HIRESshow(data, ca);
 end;
 
 procedure TC64.RAWMULTIoad(ca: TCanvas);
 var data: MULTIdata;
     g: word;
-    none: byte;
+    c, none: byte;
 begin
   if not assigned(ca) then exit;
   MULTICOLORclear(data);
+  c := (FColors4[1] and $0f) + ((FColors4[2] and $0f) shl 4);
   read(f, none, none);
   for g := 0 to $7f40-$6000-1 do read(f, data.bitmap[g]);
   //note: not yet sure if ink1/ink2 not reversed
-  for g := 0 to $8328-$7f40-1 do data.ink1[g] := (FColors4[1] and $0f) + ((FColors4[2] and $0f) shl 4);
+  for g := 0 to $8328-$7f40-1 do data.ink1[g] := c;
   for g := 0 to $8710-$8328-1 do data.ink2[g] := FColors4[3] and $0f;
   data.backGr := FColors4[0];
   MULTICOLORshow(data, ca);
@@ -1554,9 +1531,9 @@ begin
   if not assigned(ca) then exit;
   MULTICOLORclear(data);
   read(f, none, none);
-  for g := 0 to $7f40-$6000-1 do read(f, data.bitmap[g]);
-  for g := 0 to $8328-$7f40-1 do read(f, data.ink1[g]);
-  for g := 0 to $8710-$8328-1 do read(f, data.ink2[g]);
+  for g := 0 to 7999 do read(f, data.bitmap[g]); //$7f40-$6000-1
+  for g := 0 to 999 do read(f, data.ink1[g]); //$8328-$7f40-1
+  for g := 0 to 999 do read(f, data.ink2[g]); //$8710-$8328-1
   read(f, data.backGr);
   MULTICOLORshow(data, ca);
 end;
@@ -1832,8 +1809,6 @@ var data: HIRESdata;
 begin
   if not assigned(ca) then exit;
   HIRESclear(data);
-  for g := 0 to 999 do data.ink[g] := 0;  //todo: common
-  for g := 0 to 7999 do data.bitmap[g] := 0;  //todo: common
   read(f, none, none);
   for g := 0 to 7999 do read(f, data.bitmap[g]);
   for g := 0 to 999 do read(f, data.ink[g]);
@@ -2067,7 +2042,6 @@ begin
       inc(i);
     end;
     AMICAunpack(0, esc, i_buff, i, o_buff, sizeof(TAmicaBuff));
-    //todo: repack
     for i := 0 to 8192-1 do ffli2.chrmem1[i] := o_buff[i];
     for i := 0 to 8008-1 do ffli2.gfxmem1[i] := o_buff[8192+i];
     for i := 0 to 100-1 do ffli2.bgmem[i] := o_buff[8192+8008+i];
