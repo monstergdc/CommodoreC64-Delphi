@@ -9,6 +9,7 @@ Supported C-64 formats include:
 - Hi-Eddi (by Markt & Technik Verlag) (pc-ext: .hed)
 - Doodle (by OMNI) (pc-ext: .dd;.ddl;.jj)
 - RunPaint (pc-ext: .rpm)
+- Interpaint Hires (pc-ext: .ip64h;.iph)
 - Image System (Hires) (.ish)
 - Image System (Multicolor) (.ism;.ims)
 - Amica Paint (by OLIVER STILLER/MDG) (pc-ext: .ami)

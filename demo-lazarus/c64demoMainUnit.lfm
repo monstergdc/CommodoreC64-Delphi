@@ -141,8 +141,7 @@ object Form1: TForm1
       Height = 25
       Top = 2
       Width = 75
-      Caption = 'IFLI?'
-      Enabled = False
+      Caption = 'IFLI'
       OnClick = BitBtn9Click
       TabOrder = 12
     end

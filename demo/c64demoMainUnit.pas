@@ -283,8 +283,7 @@ end;
 procedure TForm1.BitBtn9Click(Sender: TObject);
 begin
   ClearImage;
-  c64.LoadFliToBitmap(folder+'intel.ifli', Image1.Picture.Bitmap.Canvas, C64_IFLI);
-  showmessage('DEBUG: '+c64.LastError);
+  c64.LoadFliToBitmap(folder+'Valsary.fun', Image1.Picture.Bitmap.Canvas, C64_FUN);
 end;
 
 procedure TForm1.BitBtnBFLIClick(Sender: TObject);

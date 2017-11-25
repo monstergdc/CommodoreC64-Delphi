@@ -5,7 +5,7 @@ unit c64;
 {$ENDIF}
 
 //------------------------------------------------------------------------------
-//Commodore C-64 GFX files manipulation Delphi (7+) / Lazarus class, v1.46
+//Commodore C-64 GFX files manipulation Delphi (7+) / Lazarus class, v1.47
 //Crossplatform (Delphi 7+ / Lazarus on Win32, Lazarus on Linux)
 //(c)1994, 1995, 2009-2011, 2017 Noniewicz.com, Jakub Noniewicz aka MoNsTeR/GDC
 //E-mail: monster@Noniewicz.com
@@ -24,6 +24,7 @@ unit c64;
 //- Hi-Eddi (by Markt & Technik Verlag) (pc-ext: .hed)
 //- Doodle (by OMNI) (pc-ext: .dd;.ddl;.jj) 
 //- RunPaint (pc-ext: .rpm)
+//- Interpaint Hires (pc-ext: .ip64h;.iph)
 //- Image System (Hires) (.ish)
 //- Image System (Multicolor) (pc-ext: .ism;.ims)
 //- Amica Paint (by OLIVER STILLER/MDG) (pc-ext: .ami)
@@ -91,12 +92,50 @@ unit c64;
 //updated: 20171120 2135-2305
 //updated: 20171121 2025-2035
 //updated: 20171125 1335-1450
+//updated: 20171125 1905-1930
 
 //note "." == topic already somewhat in progress, [!] == important, [-] == ignore
 
 {todo:
 # MAIN:
-- ?
+- more, more, more!
+
+Hires-Lace v1.5 (by Oswald/COMA) (pc-ext: .hil)
+load address: $4000 - $bf3f
+$4000 - $5f3f 	Bitmap 1
+$6000 - $63e7 	Screen RAM 1
+$8000 - $83e7 	Screen RAM 2
+$a000 - $bf3f 	Bitmap 2
+
+Saracen Paint (by IDEA) (pc-ext: .sar)
+load address: $7800 - $9FE7
+$7800 - $7BE7 	Screen RAM
+$7BF0 	Background
+$7C00 - $9B3F 	Bitmap
+$9C00 - $9FE7 	Color RAM
+
+Blazing Paddles (by BAUDEVILLE) (pc-ext: .blp;.pi)
+load address: $A000 - $C7FF
+$A000 - $BF3F 	Bitmap
+$BF80 	Background
+$C000 - $C3E7 	Screen RAM
+$C400 - $C7E7 	Color RAM
+
+Vidcom 64 (by OMEGA) (pc-ext: .vid)
+load address: $5800 - $7F3F
+$5800 - $5BE7 	Color RAM
+$5C00 - $5FE7 	Screen RAM
+$5FE8 	Background
+$6000 - $7F3F 	Bitmap 
+
+ECI Graphic Editor v1.0 (by PROACHER) (pc-ext: .eci) [ALFI]
+load address: $4000 - $bfff
+$4000 - $5f3f 	Bitmap 1
+$6000 - $7fe7 	Screen RAMs 1
+$8000 - $9f3f 	Bitmap 2
+$A000 - $bfe7 	Screen RAMs 2
+ 
+
 # NEXT:
 .- Hires Manager (.him) packed [logo.him] [HIMload]
 .- logo - hires v multi - LOGOshow(hires)
@@ -212,7 +251,9 @@ unit c64;
 - added support for Hires Manager (by Cosmos) (pc-ext: .him) unpacked
 - load 'raw' single 8000 bitmap only data - both hires/multi
 - code cleanup
-- paint pallete to canvas 
+- paint pallete to canvas
+# v1.47
+- added support for Interpaint Hires (pc-ext: .ip64h;.iph)
 
 # EOFF 
 }
@@ -320,7 +361,7 @@ TC64FileType = (C64_UNKNOWN,
                 C64_KOALA, C64_WIGMORE, C64_RUNPAINT, C64_ISM, C64_PAINTMAGIC,
                 C64_ADVARTST, C64_CDU, C64_RAINBOW,
                 C64_KOALA_RLE, 
-                C64_HIRES, C64_HED, C64_DDL, C64_ISH,
+                C64_HIRES, C64_HED, C64_DDL, C64_ISH, C64_IPH,
                 C64_DDL_RLE,
                 C64_AMICA,
                 C64_LOGO, C64_FNT, C64_FNTB, C64_MOB, C64_MBF,
@@ -387,6 +428,8 @@ private
   procedure HIRESloadDDL(ca: TCanvas);
   procedure HIRESloadDDL_RLE(ca: TCanvas);
   procedure HIRESloadISH(ca: TCanvas);
+  procedure HIRESloadIPH(ca: TCanvas);
+
   procedure AMICAload(ca: TCanvas);
   procedure LOGOload(ca: TCanvas);
   procedure FNTload(ca: TCanvas);
@@ -434,7 +477,7 @@ implementation
 
 const
   VER_MAJOR = 1;
-  VER_MINOR = 46;
+  VER_MINOR = 47;
 
 
 //0..15 = black,white,red,cyan,magenta(purple),green,blue,yellow
@@ -707,6 +750,9 @@ begin
 
   //Image System (Hires) (pc-ext: .ish)
   if (e = '.ISH') then result := C64_ISH;
+
+  //Interpaint Hires (pc-ext: .ip64h)
+  if (e = '.IPH') or (e = '.IP64H') then result := C64_IPH;
 
   //Amica Paint
   if (e = '.[B]') or (e = '.AMI') then result := C64_AMICA; //note: '[B]' invented here
@@ -1815,6 +1861,17 @@ begin
   HIRESshow(data, ca);
 end;
 
+(*
+Interpaint Hires (pc-ext: .ip64h)
+load address: $4000 - $6327
+$4000 - $5f3f 	Bitmap
+$5f40 - $6327 	Screen RAM
+*)
+procedure TC64.HIRESloadIPH(ca: TCanvas);
+begin
+  HIRESloadISH(ca); //the same
+end;
+
 procedure TC64.AMICAload(ca: TCanvas);
 var koala: MULTIdata;
     i_buff, o_buff: TAmicaBuff;
@@ -2457,6 +2514,7 @@ begin
     C64_DDL:     result := GenericLoader(FileName, HIRESloadDDL, ca, mode);
     C64_ISH:     result := GenericLoader(FileName, HIRESloadISH, ca, mode);
     C64_DDL_RLE: result := GenericLoader(FileName, HIRESloadDDL_RLE, ca, mode);
+    C64_IPH:     result := GenericLoader(FileName, HIRESloadIPH, ca, mode);
     else result := -1;
   end;
 end;
@@ -2522,7 +2580,8 @@ begin
     C64_HED,
     C64_DDL,
     C64_DDL_RLE,
-    C64_ISH:      result := LoadHiresToBitmap(FileName, ca, mode);
+    C64_ISH,
+    C64_IPH:      result := LoadHiresToBitmap(FileName, ca, mode);
     C64_LOGO:     result := LoadLogoToBitmap(FileName, ca);
     C64_FNT:      result := LoadFontToBitmap(FileName, ca);
     C64_FNTB:     result := LoadFont2x2ToBitmap(FileName, ca);
