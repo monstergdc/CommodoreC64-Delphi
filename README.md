@@ -1,6 +1,8 @@
 # CommodoreC64-Delphi
 Delphi/Lazarus class to manipulate Commodore C-64 graphics data
-with demo application, crossplatform, tested under Windows and Linux (Debian).
+with demo application, crossplatform, 
+tested under Windows and Linux (Debian).
+Currently only saves JPG/BMP.
 
 Supported C-64 formats include:
 - Koala Painter 2 (by AUDIO LIGHT) (pc-ext: .koa;.kla;.gg)
@@ -9,6 +11,8 @@ Supported C-64 formats include:
 - Hi-Eddi (by Markt & Technik Verlag) (pc-ext: .hed)
 - Doodle (by OMNI) (pc-ext: .dd;.ddl;.jj)
 - RunPaint (pc-ext: .rpm)
+- Blazing Paddles (by BAUDEVILLE) (pc-ext: .blp;.pi)
+- Vidcom 64 (by OMEGA) (pc-ext: .vid)
 - Interpaint Hires (pc-ext: .ip64h;.iph)
 - Image System (Hires) (.ish)
 - Image System (Multicolor) (.ism;.ims)
@@ -33,7 +37,6 @@ Supported C-64 formats include:
 - Hires Manager (by Cosmos) (pc-ext: .him) -- UNPACKED ONLY
 - raw single bitmap data (8000 bytes) hires/multi
 
-Currently only saves JPG/BMP.
 
 ![demo screenshot](/demo-d7_w32.png?raw=true "demo screenshot Delphi 7")
 ![demo screenshot](/demo-l_w32.png?raw=true "demo screenshot Lazarus/Win")

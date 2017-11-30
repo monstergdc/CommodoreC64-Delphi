@@ -5,7 +5,7 @@ unit c64;
 {$ENDIF}
 
 //------------------------------------------------------------------------------
-//Commodore C-64 GFX files manipulation Delphi (7+) / Lazarus class, v1.47
+//Commodore C-64 GFX files manipulation Delphi (7+) / Lazarus class, v1.48
 //Crossplatform (Delphi 7+ / Lazarus on Win32, Lazarus on Linux)
 //(c)1994, 1995, 2009-2011, 2017 Noniewicz.com, Jakub Noniewicz aka MoNsTeR/GDC
 //E-mail: monster@Noniewicz.com
@@ -24,6 +24,8 @@ unit c64;
 //- Hi-Eddi (by Markt & Technik Verlag) (pc-ext: .hed)
 //- Doodle (by OMNI) (pc-ext: .dd;.ddl;.jj) 
 //- RunPaint (pc-ext: .rpm)
+//- Blazing Paddles (by BAUDEVILLE) (pc-ext: .blp;.pi)
+//- Vidcom 64 (by OMEGA) (pc-ext: .vid)
 //- Interpaint Hires (pc-ext: .ip64h;.iph)
 //- Image System (Hires) (.ish)
 //- Image System (Multicolor) (pc-ext: .ism;.ims)
@@ -93,6 +95,9 @@ unit c64;
 //updated: 20171121 2025-2035
 //updated: 20171125 1335-1450
 //updated: 20171125 1905-1930
+//updated: 20171130 0045-0125
+//updated: 20171130 0135-0155
+//updated: 20171130 2210-2225
 
 //note "." == topic already somewhat in progress, [!] == important, [-] == ignore
 
@@ -114,27 +119,12 @@ $7BF0 	Background
 $7C00 - $9B3F 	Bitmap
 $9C00 - $9FE7 	Color RAM
 
-Blazing Paddles (by BAUDEVILLE) (pc-ext: .blp;.pi)
-load address: $A000 - $C7FF
-$A000 - $BF3F 	Bitmap
-$BF80 	Background
-$C000 - $C3E7 	Screen RAM
-$C400 - $C7E7 	Color RAM
-
-Vidcom 64 (by OMEGA) (pc-ext: .vid)
-load address: $5800 - $7F3F
-$5800 - $5BE7 	Color RAM
-$5C00 - $5FE7 	Screen RAM
-$5FE8 	Background
-$6000 - $7F3F 	Bitmap 
-
-ECI Graphic Editor v1.0 (by PROACHER) (pc-ext: .eci) [ALFI]
+ECI Graphic Editor v1.0 (by PROACHER) (pc-ext: .eci) [AFLI]
 load address: $4000 - $bfff
 $4000 - $5f3f 	Bitmap 1
 $6000 - $7fe7 	Screen RAMs 1
 $8000 - $9f3f 	Bitmap 2
 $A000 - $bfe7 	Screen RAMs 2
- 
 
 # NEXT:
 .- Hires Manager (.him) packed [logo.him] [HIMload]
@@ -254,8 +244,12 @@ $A000 - $bfe7 	Screen RAMs 2
 - paint pallete to canvas
 # v1.47
 - added support for Interpaint Hires (pc-ext: .ip64h;.iph)
+# v1.48
+- fixed (apparently old) error in multicolor rendering - pixels were shifted +1
+- added support for Blazing Paddles (by BAUDEVILLE) (pc-ext: .blp;.pi)
+- added support for Vidcom 64 (by OMEGA) (pc-ext: .vid)
 
-# EOFF 
+# EOFF
 }
 
 interface
@@ -360,6 +354,7 @@ TC64FileType = (C64_UNKNOWN,
                 C64_RAW,
                 C64_KOALA, C64_WIGMORE, C64_RUNPAINT, C64_ISM, C64_PAINTMAGIC,
                 C64_ADVARTST, C64_CDU, C64_RAINBOW,
+                C64_BLP, C64_VID,
                 C64_KOALA_RLE, 
                 C64_HIRES, C64_HED, C64_DDL, C64_ISH, C64_IPH,
                 C64_DDL_RLE,
@@ -422,6 +417,8 @@ private
   procedure ADVARTSTload(ca: TCanvas);
   procedure CDUload(ca: TCanvas);
   procedure RPload(ca: TCanvas);
+  procedure BLPload(ca: TCanvas);
+  procedure VIDload(ca: TCanvas);
 
   procedure HIRESload(ca: TCanvas);
   procedure HIRESloadHED(ca: TCanvas);
@@ -477,7 +474,7 @@ implementation
 
 const
   VER_MAJOR = 1;
-  VER_MINOR = 47;
+  VER_MINOR = 48;
 
 
 //0..15 = black,white,red,cyan,magenta(purple),green,blue,yellow
@@ -719,6 +716,12 @@ begin
   //Advanced Art Studio 2.0 (by OCP) (pc-ext: .ocp;.art)
   if (e = '.MPIC') then result := C64_ADVARTST; //note: we use .mpic ext, not .art or other
 
+  //Blazing Paddles (by BAUDEVILLE) (pc-ext: .blp;.pi) 
+  if (e = '.BLP') or (e = '.PI') then result := C64_BLP;
+
+  //Vidcom 64 (by OMEGA) (pc-ext: .vid) 
+  if (e = '.VID') then result := C64_VID;
+
   //Wigmore Artist64 (by wigmore) (pc-ext: .a64)
   if (e = '.A64') then result := C64_WIGMORE;
 
@@ -934,8 +937,9 @@ begin
             1: c := GetC64Color(c2);
             else c := GetC64Color(c0);
           end;
-          ca.Pixels[x*8+7-2*bit, (y*8+bt)] := c;
-          ca.Pixels[x*8+8-2*bit, (y*8+bt)] := c;
+          //todo: err x - should be -1 (so everywhere)
+          ca.Pixels[x*8+7-2*bit-1, (y*8+bt)] := c;
+          ca.Pixels[x*8+8-2*bit-1, (y*8+bt)] := c;
         end;
       end;
     end;
@@ -994,8 +998,8 @@ begin
             3: c := GetC64Color(FColors4[3]);
             else c := GetC64Color(0);
           end;
-          ca.Pixels[x*8+7-2*bit, (y*8+bt)] := c;
-          ca.Pixels[x*8+8-2*bit, (y*8+bt)] := c;
+          ca.Pixels[x*8+7-2*bit-1, (y*8+bt)] := c;
+          ca.Pixels[x*8+8-2*bit-1, (y*8+bt)] := c;
         end;
       end;
     end;
@@ -1779,6 +1783,58 @@ begin
   MULTICOLORshow(data, ca);
 end;
 
+(*
+Blazing Paddles (by BAUDEVILLE) (pc-ext: .blp;.pi)
+load address: $A000 - $C7FF
+$A000 - $BF3F 	Bitmap
+$BF80 	Background
+$C000 - $C3E7 	Screen RAM
+$C400 - $C7E7 	Color RAM
+*)
+procedure TC64.BLPload(ca: TCanvas);
+var data: MULTIdata;
+    g: word;
+    none: byte;
+begin
+  if not assigned(ca) then exit;
+  MULTICOLORclear(data);
+  read(f, none, none);
+  for g := 0 to 7999 do read(f, data.bitmap[g]);
+  for g := 0 to 63 do read(f, none); //skip
+  read(f, data.backGr);
+  for g := 0 to 127-1 do read(f, none); //skip
+  for g := 0 to 999 do read(f, data.ink1[g]);
+  for g := 0 to 23 do read(f, none); //skip
+  for g := 0 to 999 do read(f, data.ink2[g]);
+  MULTICOLORshow(data, ca);
+end;
+
+(*
+Vidcom 64 (by OMEGA) (pc-ext: .vid) 
+load address: $5800 - $7F3F
+$5800 - $5BE7 	Color RAM (<>)
+$5C00 - $5FE7 	Screen RAM (<>)
+$5FE8 	Background
+$6000 - $7F3F 	Bitmap
+*)
+procedure TC64.VIDload(ca: TCanvas);
+var data: MULTIdata;
+    g: word;
+    none: byte;
+begin
+  if not assigned(ca) then exit;
+  MULTICOLORclear(data);
+  read(f, none, none);
+  for g := 0 to 999 do read(f, data.ink2[g]);
+  for g := 0 to 23 do read(f, none); //skip
+  for g := 0 to 999 do read(f, data.ink1[g]);
+  read(f, data.backGr);
+  read(f, data.backGr); //apparently this one
+  for g := 0 to 23-1-1 do read(f, none); //skip
+  for g := 0 to 7999 do read(f, data.bitmap[g]);
+  MULTICOLORshow(data, ca);
+end;
+
 procedure TC64.HIRESload(ca: TCanvas);
 var data: HIRESdata;
     g: word;
@@ -2502,6 +2558,8 @@ begin
     C64_CDU:        result := GenericLoader(FileName, CDUload, ca, mode);
     C64_RAINBOW:    result := GenericLoader(FileName, RPload, ca, mode);
     C64_KOALA_RLE:  result := GenericLoader(FileName, KOALAload_RLE, ca, mode);
+    C64_BLP:        result := GenericLoader(FileName, BLPload, ca, mode);
+    C64_VID:        result := GenericLoader(FileName, VIDload, ca, mode);
     else result := -1;
   end;
 end;
@@ -2574,7 +2632,9 @@ begin
     C64_PAINTMAGIC,
     C64_ADVARTST,
     C64_CDU,
-    C64_RAINBOW:  result := LoadMulticolorToBitmap(FileName, ca, mode);
+    C64_RAINBOW,
+    C64_BLP,
+    C64_VID:      result := LoadMulticolorToBitmap(FileName, ca, mode);
     C64_AMICA:    result := LoadAmicaToBitmap(FileName, ca);
     C64_HIRES,
     C64_HED,
