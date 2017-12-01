@@ -13,6 +13,7 @@ Supported C-64 formats include:
 - RunPaint (pc-ext: .rpm)
 - Blazing Paddles (by BAUDEVILLE) (pc-ext: .blp;.pi)
 - Vidcom 64 (by OMEGA) (pc-ext: .vid)
+- Saracen Paint (by IDEA) (pc-ext: .sar)
 - Interpaint Hires (pc-ext: .ip64h;.iph)
 - Image System (Hires) (.ish)
 - Image System (Multicolor) (.ism;.ims)
