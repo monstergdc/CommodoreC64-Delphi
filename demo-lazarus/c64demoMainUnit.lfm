@@ -13,7 +13,7 @@ object Form1: TForm1
   Font.Name = 'MS Sans Serif'
   OnCreate = FormCreate
   OnDestroy = FormDestroy
-  LCLVersion = '1.6.2.0'
+  LCLVersion = '1.8.2.0'
   object Image1: TImage
     Left = 8
     Height = 400
@@ -346,7 +346,7 @@ object Form1: TForm1
   object SaveDialog1: TSaveDialog
     Options = [ofOverwritePrompt, ofHideReadOnly, ofPathMustExist, ofEnableSizing]
     left = 24
-    top = 168
+    top = 184
   end
   object OpenDialog1: TOpenDialog
     left = 24

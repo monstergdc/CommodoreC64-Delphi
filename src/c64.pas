@@ -8,8 +8,7 @@ unit c64;
 //Commodore C-64 GFX files manipulation Delphi (7+) / Lazarus class, v1.49
 //Crossplatform (Delphi 7+ / Lazarus on Win32, Lazarus on Linux)
 //(c)1994, 1995, 2009-2011, 2017 Noniewicz.com, Jakub Noniewicz aka MoNsTeR/GDC
-//E-mail: monster@Noniewicz.com
-//WWW: http://www.Noniewicz.com
+//WWW: https://www.Noniewicz.com
 //Licence: BSD 2-Clause License
 //------------------------------------------------------------------------------
 //based on my own earlier work (Koala/ArtStudio/Amica/Fonts/Sprites/Logo Painter)
@@ -100,6 +99,7 @@ unit c64;
 //updated: 20171130 0135-0155
 //updated: 20171130 2210-2225
 //updated: 20171201 1830-1900
+//updated: 20240108 1350-1355
 
 //note "." == topic already somewhat in progress, [!] == important, [-] == ignore
 

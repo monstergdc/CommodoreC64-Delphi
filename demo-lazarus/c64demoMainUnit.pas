@@ -2,10 +2,11 @@ unit c64demoMainUnit;
 
 {$MODE Delphi}
 
-//TC64 Delphi/Lazarus class example / demo Lazarus, v1.0
-//(c)2017 Noniewicz.com
+//TC64 Delphi/Lazarus class example / demo Lazarus, v1.0a
+//(c)2017, 2023 Noniewicz.com, Jakub Noniewicz aka MoNsTeR/GDC
 //created: 20171029
 //updated: 20171101, 05, 11, 13, 15, 18, 20, 25
+//updated: 20240108
 
 interface
 
@@ -241,12 +242,22 @@ end;
 
 procedure TForm1.BitBtnSaveClick(Sender: TObject);
 var jpg: TJPEGImage;
+    png: TPortableNetworkGraphic; //tpngobject
 begin
   jpg := TJPEGImage.Create;
+  png := TPortableNetworkGraphic.Create;
 
-  SaveDialog1.Filter := 'BMP (*.bmp)|*.bmp|JPG (*.jpg)|*.jpg';
+  //SaveDialog1.Filter := 'BMP (*.bmp)|*.bmp|JPG (*.jpg)|*.jpg';
+  SaveDialog1.Filter := 'BMP (*.bmp)|*.bmp|JPG (*.jpg)|*.jpg|PNG (*.png)|*.png';
   if SaveDialog1.Execute then
   try
+    if SaveDialog1.FilterIndex = 3 then //png
+    begin
+      png.Assign(Image1.Picture.Bitmap);
+      SaveDialog1.FileName := ChangeFileExt(SaveDialog1.FileName, '.png');
+      png.SaveToFile(SaveDialog1.FileName);
+    end
+    else
     if SaveDialog1.FilterIndex = 2 then //jpg
     begin
       jpg.Assign(Image1.Picture.Bitmap);
@@ -265,17 +276,18 @@ begin
       MessageDlg('Error saving image: '+E.Message, mtError, [mbOK], 0);
   end;
 
-  jpg.Free;  
+  png.Free;
+  jpg.Free;
 end;
 
 procedure TForm1.BitBtnAboutClick(Sender: TObject);
 begin
   showmessage('Commodore C-64 images and GFX data viewer/converter Delphi/Lazarus class (TC64) DEMO.'#13#10+
               'Component version: '+c64.Version+#13#10+
-              '(c)1994-2017 Noniewicz.com, Jakub Noniewicz aka MoNsTeR/GDC'#13#10+
+              '(c)1994-2017, 2024 Noniewicz.com, Jakub Noniewicz aka MoNsTeR/GDC'#13#10+
               '*FREEWARE*'#13#10#13#10+
               'Reads various C-64 graphics files.'#13#10+
-              'Saves only BMP/JPG for now.'#13#10+
+              'Saves only BMP/JPG/PNG for now.'#13#10+
               #13#10+
               'Further development possible but not granted.'#13#10+
               #13#10+

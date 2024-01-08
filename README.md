@@ -2,7 +2,7 @@
 Delphi/Lazarus class to manipulate Commodore C-64 graphics data
 with demo application, crossplatform, 
 tested under Windows and Linux (Debian).
-Currently only saves JPG/BMP.
+Currently only saves JPG/BMP (and PNG in Lazarus version).
 
 Supported C-64 formats include:
 - Koala Painter 2 (by AUDIO LIGHT) (pc-ext: .koa;.kla;.gg)
