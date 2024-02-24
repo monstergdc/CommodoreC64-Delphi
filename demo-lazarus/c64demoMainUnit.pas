@@ -6,13 +6,22 @@ unit c64demoMainUnit;
 //(c)2017, 2023 Noniewicz.com, Jakub Noniewicz aka MoNsTeR/GDC
 //created: 20171029
 //updated: 20171101, 05, 11, 13, 15, 18, 20, 25
-//updated: 20240108
+//updated: 20240108, 10
+
+{TODO:
+1. 'live' change on pallete/color change
+2. batch process from shell - separate exe?
+3. opt ignore ext/ opt ask for filetype?
+.4. opt load files w/o 2 1st bytes [now only wirks for some]
+5. LATER: cnv from/to zx? also just handle zx?
+6. [-] also generate c64 img?
+}
 
 interface
 
 uses
   LCLIntf, LCLType, LMessages, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
-  Dialogs, StdCtrls, Buttons, ExtCtrls,
+  Dialogs, StdCtrls, Buttons, ExtCtrls, ActnList,
   c64;
 
 type
@@ -20,7 +29,12 @@ type
   { TForm1 }
 
   TForm1 = class(TForm)
+    AcLoad: TAction;
+    AcSave: TAction;
+    ActionList1: TActionList;
     BitBtnADVART: TBitBtn;
+    cbHires: TCheckBox;
+    cbIsRaw: TCheckBox;
     Image1: TImage;
     ImagePal: TImage;
     Label1: TLabel;
@@ -56,8 +70,10 @@ type
     ComboBoxC3: TComboBox;
     Label5: TLabel;
     BitBtnMOBH: TBitBtn;
-    cbHires: TCheckBox;
+    procedure AcLoadExecute(Sender: TObject);
+    procedure AcSaveExecute(Sender: TObject);
     procedure BitBtnADVARTClick(Sender: TObject);
+    procedure cbHiresChange(Sender: TObject);
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
     procedure BitBtnKOALAClick(Sender: TObject);
@@ -66,9 +82,7 @@ type
     procedure BitBtnLOGOClick(Sender: TObject);
     procedure BitBtnFONTClick(Sender: TObject);
     procedure BitBtnFNTBClick(Sender: TObject);
-    procedure BitBtnSaveClick(Sender: TObject);
     procedure BitBtnAboutClick(Sender: TObject);
-    procedure BitBtnLoadClick(Sender: TObject);
     procedure BitBtnMOBMClick(Sender: TObject);
     procedure BitBtn8Click(Sender: TObject);
     procedure BitBtn9Click(Sender: TObject);
@@ -85,6 +99,7 @@ type
     procedure ClearImage(bfli: boolean = false);
     procedure Set320x200;
     procedure Set320x400;
+    procedure DoSave;
   public
   end;
 
@@ -130,6 +145,29 @@ procedure TForm1.BitBtnADVARTClick(Sender: TObject);
 begin
   ClearImage;
   c64.LoadMulticolorToBitmap(folder+'demo-meyes.mpic', Image1.Picture.Bitmap.Canvas, C64_ADVARTST);
+end;
+
+procedure TForm1.AcLoadExecute(Sender: TObject);
+begin
+  if OpenDialog1.Execute then
+  begin
+    ClearImage(c64.ExtMapper(ExtractFileExt(OpenDialog1.FileName)) = C64_BFLI);
+    c64.Set4Colors(ComboBoxC0.ItemIndex, ComboBoxC1.ItemIndex, ComboBoxC2.ItemIndex, ComboBoxC3.ItemIndex);
+    c64.AsHires := cbHires.Checked;
+    c64.SkipHead := cbIsRaw.Checked;
+    if c64.LoadC64ToBitmap(OpenDialog1.FileName, Image1.Picture.Bitmap.Canvas) <> 0 then
+      showmessage('ERROR: '+c64.LastError);
+  end;
+end;
+
+procedure TForm1.AcSaveExecute(Sender: TObject);
+begin
+  DoSave;
+end;
+
+procedure TForm1.cbHiresChange(Sender: TObject);
+begin
+  //
 end;
 
 procedure TForm1.FormDestroy(Sender: TObject);
@@ -240,7 +278,7 @@ begin
   c64.LoadMobToBitmap(folder+'SWISS.MBF', Image1.Picture.Bitmap.Canvas);
 end;
 
-procedure TForm1.BitBtnSaveClick(Sender: TObject);
+procedure TForm1.DoSave;
 var jpg: TJPEGImage;
     png: TPortableNetworkGraphic; //tpngobject
 begin
@@ -293,19 +331,6 @@ begin
               #13#10+
               'Greetings to all old friends from demoscene!'#13#10
               );
-end;
-
-
-procedure TForm1.BitBtnLoadClick(Sender: TObject);
-begin
-  if OpenDialog1.Execute then
-  begin
-    ClearImage(c64.ExtMapper(ExtractFileExt(OpenDialog1.FileName)) = C64_BFLI);
-    c64.Set4Colors(ComboBoxC0.ItemIndex, ComboBoxC1.ItemIndex, ComboBoxC2.ItemIndex, ComboBoxC3.ItemIndex);
-    c64.AsHires := cbHires.Checked;
-    if c64.LoadC64ToBitmap(OpenDialog1.FileName, Image1.Picture.Bitmap.Canvas) <> 0 then
-      showmessage('ERROR: '+c64.LastError);
-  end;
 end;
 
 procedure TForm1.BitBtn9Click(Sender: TObject);

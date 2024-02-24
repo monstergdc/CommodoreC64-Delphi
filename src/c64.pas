@@ -5,9 +5,9 @@ unit c64;
 {$ENDIF}
 
 //------------------------------------------------------------------------------
-//Commodore C-64 GFX files manipulation Delphi (7+) / Lazarus class, v1.49
+//Commodore C-64 GFX files manipulation Delphi (7+) / Lazarus class, v1.50
 //Crossplatform (Delphi 7+ / Lazarus on Win32, Lazarus on Linux)
-//(c)1994, 1995, 2009-2011, 2017 Noniewicz.com, Jakub Noniewicz aka MoNsTeR/GDC
+//(c)1994, 1995, 2009-2011, 2017, 2024 Noniewicz.com, Jakub Noniewicz aka MoNsTeR/GDC
 //WWW: https://www.Noniewicz.com
 //Licence: BSD 2-Clause License
 //------------------------------------------------------------------------------
@@ -54,6 +54,7 @@ unit c64;
 //updated: 20091231 ????-????
 //updated: 20100101 ????-????
 //updated: 20110510 ????-????
+//---
 //updated: 20171029 1715-2040
 //updated: 20171029 2150-2250
 //updated: 20171030 2200-2215
@@ -99,7 +100,9 @@ unit c64;
 //updated: 20171130 0135-0155
 //updated: 20171130 2210-2225
 //updated: 20171201 1830-1900
+//---
 //updated: 20240108 1350-1355
+//updated: 20240110 2045-2130
 
 //note "." == topic already somewhat in progress, [!] == important, [-] == ignore
 
@@ -233,6 +236,9 @@ unit c64;
 - added support for Vidcom 64 (by OMEGA) (pc-ext: .vid)
 # v1.49
 - added support for Saracen Paint (by IDEA) (pc-ext: .sar)
+# v1.50 (202401)
+- option to load raw file w/o std C64 2-byte load address (not or all formats)
+- some minor changes
 
 # EOFF
 }
@@ -357,9 +363,11 @@ private
   FLastError: string;
   FPalette: TC64Pallete;
   FAsHires: boolean;
+  FSkipHead: boolean;
 
   function GenericLoader(FileName: string; callback: TC64Loader; ca: TCanvas; mode: TC64FileType): integer;
   function GetVersion: string;
+  procedure ReadAndDiscardHead;
 
   procedure MULTICOLORclear(var data: MULTIdata);
   procedure HIRESclear(var data: HIRESdata);
@@ -448,10 +456,12 @@ public
   function LoadFliToBitmap(FileName: string; ca: TCanvas; mode: TC64FileType): integer;
 
   function LoadC64ToBitmap(FileName: string; ca: TCanvas): integer;
+  function LoadC64ToBitmapByMode(FileName: string; ca: TCanvas; mode: TC64FileType): integer;
 published
   property LastError: string read FLastError;
   property Palette: TC64Pallete read FPalette write FPalette;
   property AsHires: boolean read FAsHires write FAsHires;
+  property SkipHead: boolean read FSkipHead write FSkipHead;
   property Version: string read GetVersion;
 end;
 
@@ -460,7 +470,7 @@ implementation
 
 const
   VER_MAJOR = 1;
-  VER_MINOR = 49;
+  VER_MINOR = 50;
 
 
 //0..15 = black,white,red,cyan,magenta(purple),green,blue,yellow
@@ -597,11 +607,21 @@ begin
   FPalette := CCS64_PAL;
   FAsHires := false;
   Set4Colors(0, 1, 15, 11);
+  FSkipHead := false;
 end;
 
 function TC64.GetVersion: string;
 begin
   result := inttostr(VER_MAJOR)+'.'+inttostr(VER_MINOR);
+end;
+
+procedure TC64.ReadAndDiscardHead;
+var none: byte;
+begin
+  if not FSkipHead then
+  begin
+    read(f, none, none);
+  end;
 end;
 
 function TC64.GetC64Color(index: integer): TColor;
@@ -756,7 +776,7 @@ begin
   if e = '.FNT' then result := C64_FNT;
 
   //16x16 font (multi or hires)
-  if e = '.FNB' then result := C64_FNTB;  //note: ext invented here
+  if (e = '.FNB') or (e = '.FNTB') then result := C64_FNTB;  //note: ext invented here
 
   //sprites + sprite fonts hires/multi 
   if e = '.MOB' then result := C64_MOB;   //note: ext invented here
@@ -1534,12 +1554,12 @@ end;
 procedure TC64.RAWHIRESload(ca: TCanvas);
 var data: HIRESdata;
     g: word;
-    c, none: byte;
+    c: byte;
 begin
   if not assigned(ca) then exit;
   HIRESclear(data);
   c := (FColors4[0] and $0f) + ((FColors4[1] and $0f) shl 4);
-  read(f, none, none);
+  ReadAndDiscardHead;
   for g := 0 to 8000-1 do read(f, data.bitmap[g]);
   for g := 0 to 1000-1 do data.ink[g] := c;
   HIRESshow(data, ca);
@@ -1548,12 +1568,12 @@ end;
 procedure TC64.RAWMULTIoad(ca: TCanvas);
 var data: MULTIdata;
     g: word;
-    c, none: byte;
+    c: byte;
 begin
   if not assigned(ca) then exit;
   MULTICOLORclear(data);
   c := (FColors4[1] and $0f) + ((FColors4[2] and $0f) shl 4);
-  read(f, none, none);
+  ReadAndDiscardHead;
   for g := 0 to $7f40-$6000-1 do read(f, data.bitmap[g]);
   //note: not yet sure if ink1/ink2 not reversed
   for g := 0 to $8328-$7f40-1 do data.ink1[g] := c;
@@ -1565,11 +1585,10 @@ end;
 procedure TC64.KOALAload(ca: TCanvas);
 var data: MULTIdata;
     g: word;
-    none: byte;
 begin
   if not assigned(ca) then exit;
   MULTICOLORclear(data);
-  read(f, none, none);
+  ReadAndDiscardHead;
   for g := 0 to 7999 do read(f, data.bitmap[g]); //$7f40-$6000-1
   for g := 0 to 999 do read(f, data.ink1[g]); //$8328-$7f40-1
   for g := 0 to 999 do read(f, data.ink2[g]); //$8710-$8328-1
@@ -1616,7 +1635,7 @@ var data: MULTIdata;
 begin
   if not assigned(ca) then exit;
   MULTICOLORclear(data);  
-  read(f, none, none);
+  ReadAndDiscardHead;
   for g := 0 to 7999 do read(f, data.bitmap[g]);
   for g := 0 to $6000-$5F3F-1-1 do read(f, none); //?
   for g := 0 to 999 do read(f, data.ink1[g]);
@@ -1637,11 +1656,10 @@ $8710 	Background
 procedure TC64.RUNPAINTload(ca: TCanvas);
 var data: MULTIdata;
     g: word;
-    none: byte;
 begin
   if not assigned(ca) then exit;
   MULTICOLORclear(data);  
-  read(f, none, none);
+  ReadAndDiscardHead;
   for g := 0 to 7999 do read(f, data.bitmap[g]);
   for g := 0 to 999 do read(f, data.ink1[g]);
   for g := 0 to 999 do read(f, data.ink2[g]);
@@ -1664,7 +1682,7 @@ var data: MULTIdata;
 begin
   if not assigned(ca) then exit;
   MULTICOLORclear(data);  
-  read(f, none, none);
+  ReadAndDiscardHead;
   for g := 0 to 999 do read(f, data.ink2[g]);
   for g := 0 to 23 do read(f, none); //?
   for g := 0 to 7999 do read(f, data.bitmap[g]);
@@ -1691,7 +1709,7 @@ var data: MULTIdata;
 begin
   if not assigned(ca) then exit;
   MULTICOLORclear(data);  
-  read(f, none, none);
+  ReadAndDiscardHead;
   for g := 0 to $3FFF-$3F8E-1+(1) do read(f, none); //display routine
   for g := 0 to 7999 do read(f, data.bitmap[g]);
   read(f, data.backGr);
@@ -1720,7 +1738,7 @@ var data: MULTIdata;
 begin
   if not assigned(ca) then exit;
   MULTICOLORclear(data);  
-  read(f, none, none);
+  ReadAndDiscardHead;
   for g := 0 to 7999 do read(f, data.bitmap[g]);
   for g := 0 to 999 do read(f, data.ink1[g]);
   read(f, none);
@@ -1746,7 +1764,7 @@ var data: MULTIdata;
 begin
   if not assigned(ca) then exit;
   MULTICOLORclear(data);
-  read(f, none, none);
+  ReadAndDiscardHead;
   for g := 0 to 272 do read(f, none); //skip display routine
   for g := 0 to 7999 do read(f, data.bitmap[g]);
   for g := 0 to 999 do read(f, data.ink1[g]);
@@ -1762,7 +1780,7 @@ var data: MULTIdata;
 begin
   if not assigned(ca) then exit;
   MULTICOLORclear(data);
-  read(f, none, none);
+  ReadAndDiscardHead;
   for g := 0 to 999 do read(f, data.ink1[g]);
   for g := 0 to 23 do read(f, none); //skip
   for g := 0 to 7999 do read(f, data.bitmap[g]);
@@ -1787,7 +1805,7 @@ var data: MULTIdata;
 begin
   if not assigned(ca) then exit;
   MULTICOLORclear(data);
-  read(f, none, none);
+  ReadAndDiscardHead;
   for g := 0 to 7999 do read(f, data.bitmap[g]);
   for g := 0 to 63 do read(f, none); //skip
   read(f, data.backGr);
@@ -1813,7 +1831,7 @@ var data: MULTIdata;
 begin
   if not assigned(ca) then exit;
   MULTICOLORclear(data);
-  read(f, none, none);
+  ReadAndDiscardHead;
   for g := 0 to 999 do read(f, data.ink2[g]);
   for g := 0 to 23 do read(f, none); //skip
   for g := 0 to 999 do read(f, data.ink1[g]);
@@ -1839,7 +1857,7 @@ var data: MULTIdata;
 begin
   if not assigned(ca) then exit;
   MULTICOLORclear(data);
-  read(f, none, none);
+  ReadAndDiscardHead;
   for g := 0 to 999 do read(f, data.ink1[g]);
   for g := 0 to 7-1 do read(f, none); //skip
   read(f, data.backGr); //todo: why differs from congo? my seems proper
@@ -1853,12 +1871,11 @@ end;
 procedure TC64.HIRESload(ca: TCanvas);
 var data: HIRESdata;
     g: word;
-    none: byte;
 begin
   if not assigned(ca) then exit;
   HIRESclear(data);
   {9009 bytes - what's that!?}
-  read(f, none, none);
+  ReadAndDiscardHead;
   for g := 0 to $3f40-$2000-1 do read(f, data.bitmap[g]);
   for g := 0 to $4328-$3f40-1 do read(f, data.ink[g]);
   HIRESshow(data, ca);
@@ -1871,7 +1888,7 @@ var data: HIRESdata;
 begin
   if not assigned(ca) then exit;
   HIRESclear(data);  
-  read(f, none, none);
+  ReadAndDiscardHead;
   for g := 0 to $3f3f-$2000-1 do read(f, data.bitmap[g]);
   for g := 0 to $4000-$3f3f-1 do read(f, none); //skip
   for g := 0 to $43e7-$4000-1 do read(f, data.ink[g]);
@@ -1922,11 +1939,10 @@ $6000 - $63e7 	Screen RAM
 procedure TC64.HIRESloadISH(ca: TCanvas);
 var data: HIRESdata;
     g: word;
-    none: byte;
 begin
   if not assigned(ca) then exit;
   HIRESclear(data);
-  read(f, none, none);
+  ReadAndDiscardHead;
   for g := 0 to 7999 do read(f, data.bitmap[g]);
   for g := 0 to 999 do read(f, data.ink[g]);
   HIRESshow(data, ca);
@@ -1975,7 +1991,7 @@ var data: LOGOdata;
 begin
   if not assigned(ca) then exit;
   LOGOclear(data);
-  read(f, none, none);
+  ReadAndDiscardHead;
   for g := 0 to $1c00-$1800-1 do read(f, data.logo[g]);
   for g := $1800-$1800 to $2000-$1c00-1 do read(f, none);
   for g := $2000-$2000 to $2800-$2000-1 do read(f, data.bitmap[g]);
@@ -1989,7 +2005,7 @@ begin
   if not assigned(ca) then exit;
 
   FNTclear(data);
-  read(f, g, g);
+  ReadAndDiscardHead;
   for g := 1 to 64 do
     for h := 0 to 7 do
       read(f, data.fnt[g, h]);
@@ -2002,12 +2018,12 @@ end;
 
 procedure TC64.FNTBload(ca: TCanvas);
 var data: FNTBdata;
-    g, h, none: byte;
+    g, h: byte;
 begin
   if not assigned(ca) then exit;
 
   FNTBclear(data);
-  read(f, none, none);
+  ReadAndDiscardHead;
   for g := 1 to 64 do for h := 0 to 7 do read(f, data.fntb[g, h]);
   for g := 1 to 64 do for h := 0 to 7 do read(f, data.fntb[g, h+8]);
   for g := 1 to 64 do for h := 0 to 7 do read(f, data.fntb[g, h+16]);
@@ -2032,7 +2048,7 @@ begin
   MOBclear(mob);
 
   mob.cnt := 1;
-  read(f, g, g);
+  ReadAndDiscardHead;
   while not eof(f) do
   begin
     for g := 0 to 63 do
@@ -2074,7 +2090,7 @@ begin
   if not assigned(ca) then exit;
 
   FLIclear(fli);
-  read(f, none, none);
+  ReadAndDiscardHead;
 
   for i := 0 to 7999 do
     read(f, fli.gfxmem[i]);
@@ -2117,7 +2133,8 @@ begin
   if not assigned(ca) then exit;
 
   IFLIclear(ifli);
-  read(f, none, none); //33603 total 
+  ReadAndDiscardHead;
+  //33603 total
 
   for i := 0 to 8192-1 do read(f, ifli.chrmem1[i]);  //$4000 - $5fe7 = Screen RAMs 1
   for i := 0 to 8000-1 do read(f, ifli.gfxmem1[i]);  //$6000 - $7f3f = Bitmap 1
@@ -2154,7 +2171,8 @@ begin
   if not assigned(ca) then exit;
 
   FFLI2clear(ffli2);
-  read(f, none, none); //total max: 33694
+  ReadAndDiscardHead;
+  //total max: 33694
 
   for i := 0 to 14-1 do read(f, none); //skip header
   read(f, flag);
@@ -2215,7 +2233,8 @@ begin
   if not assigned(ca) then exit;
 
   DRAZFLIclear(drazfli);
-  read(f, none, none); //18239 total max
+  ReadAndDiscardHead;
+  //18239 total max
 
   //packed file starts with header 'DRAZLACE! 1.0' and escape byte. RLE: ESCAPE,COUNT,BYTE
   hd := '';
@@ -2273,7 +2292,7 @@ begin
   if not assigned(ca) then exit;
 
   MCIFLIclear(data);
-  read(f, none, none);
+  ReadAndDiscardHead;
 
   for i := 0 to 1000-1 do read(f, data.chrmem1[i]);  //Screen RAM
   read(f, data.bgcol); //bg
@@ -2305,7 +2324,7 @@ begin
   if not assigned(ca) then exit;
 
   HIIclear(data);
-  read(f, none, none);
+  ReadAndDiscardHead;
 
   for i := 0 to 8000-1 do read(f, data.gfxmem1[i]);
   for i := 0 to 1216-1 do read(f, none);
@@ -2346,7 +2365,7 @@ begin
   if not assigned(ca) then exit;
 
   FLIclear(data);
-  read(f, none, none);
+  ReadAndDiscardHead;
 
   read(f, none, fmt);
   seek(f, 0);
@@ -2637,8 +2656,13 @@ end;
 function TC64.LoadC64ToBitmap(FileName: string; ca: TCanvas): integer;
 var mode: TC64FileType;
 begin
-  FLastError := 'Unknown format extension';
   mode := ExtMapper(ExtractFileExt(FileName));
+  result := LoadC64ToBitmapByMode(FileName, ca, mode);
+end;
+
+function TC64.LoadC64ToBitmapByMode(FileName: string; ca: TCanvas; mode: TC64FileType): integer;
+begin
+  FLastError := 'Unknown format extension';
   case mode of
     C64_KOALA,
     C64_KOALA_RLE,

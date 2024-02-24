@@ -33,8 +33,7 @@ object Form1: TForm1
     Height = 25
     Top = 224
     Width = 75
-    Caption = 'Save img...'
-    OnClick = BitBtnSaveClick
+    Action = AcSave
     TabOrder = 1
   end
   object BitBtnAbout: TBitBtn
@@ -51,8 +50,7 @@ object Form1: TForm1
     Height = 25
     Top = 224
     Width = 75
-    Caption = 'Load...'
-    OnClick = BitBtnLoadClick
+    Action = AcLoad
     TabOrder = 0
   end
   object GBQuick: TGroupBox
@@ -250,11 +248,11 @@ object Form1: TForm1
   end
   object GroupBox2: TGroupBox
     Left = 456
-    Height = 169
+    Height = 129
     Top = 256
     Width = 145
     Caption = 'Four colors + mode'
-    ClientHeight = 151
+    ClientHeight = 111
     ClientWidth = 141
     TabOrder = 5
     object Label2: TLabel
@@ -325,14 +323,6 @@ object Form1: TForm1
       Style = csDropDownList
       TabOrder = 3
     end
-    object cbHires: TCheckBox
-      Left = 8
-      Height = 17
-      Top = 112
-      Width = 65
-      Caption = 'As Hires?'
-      TabOrder = 4
-    end
   end
   object ImagePal: TImage
     Left = 344
@@ -343,6 +333,23 @@ object Form1: TForm1
     ParentShowHint = False
     ShowHint = True
   end
+  object cbHires: TCheckBox
+    Left = 456
+    Height = 17
+    Top = 392
+    Width = 65
+    Caption = 'As Hires?'
+    OnChange = cbHiresChange
+    TabOrder = 6
+  end
+  object cbIsRaw: TCheckBox
+    Left = 456
+    Height = 17
+    Top = 408
+    Width = 144
+    Caption = 'File is raw (w/o load addr.)'
+    TabOrder = 7
+  end
   object SaveDialog1: TSaveDialog
     Options = [ofOverwritePrompt, ofHideReadOnly, ofPathMustExist, ofEnableSizing]
     left = 24
@@ -351,5 +358,21 @@ object Form1: TForm1
   object OpenDialog1: TOpenDialog
     left = 24
     top = 136
+  end
+  object ActionList1: TActionList
+    left = 42
+    top = 347
+    object AcLoad: TAction
+      Caption = 'Load...'
+      Hint = 'Load'
+      OnExecute = AcLoadExecute
+      ShortCut = 16463
+    end
+    object AcSave: TAction
+      Caption = 'Save img...'
+      Hint = 'Save image'
+      OnExecute = AcSaveExecute
+      ShortCut = 16467
+    end
   end
 end
